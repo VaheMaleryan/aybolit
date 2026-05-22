@@ -1,8 +1,8 @@
 {
-  "name": "deghatun",
+  "name": "aybolit",
   "private": true,
   "version": "1.0.0",
-  "homepage": "https://vahemaleryan.github.io/deghatun",
+  "homepage": "https://vahemaleryan.github.io/aybolit",
   "type": "module",
   "scripts": {
     "dev": "vite",

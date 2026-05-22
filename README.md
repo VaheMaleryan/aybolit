@@ -1,9 +1,9 @@
-# Deghatun · Դeghатун
+# Aybolit · Այбoлit
 
-**Understand your medication in Armenian and Russian**
+**Your friendly Armenian medication assistant — named after the beloved Soviet cartoon doctor**
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue)](https://vahemaleryan.github.io/deghatun)
-[![API Docs](https://img.shields.io/badge/API-FastAPI%20Docs-green)](https://deghatun-api.up.railway.app/docs)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue)](https://vahemaleryan.github.io/aybolit)
+[![API Docs](https://img.shields.io/badge/API-FastAPI%20Docs-green)](https://aybolit-api.up.railway.app/docs)
 [![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
 [![Languages](https://img.shields.io/badge/languages-Armenian%20%7C%20Russian%20%7C%20English-orange)]()
 
@@ -17,7 +17,7 @@ No Armenian-language medication explainer existed — until now.
 
 ---
 
-## What Deghatun Does
+## What Aybolit Does
 
 - **Type any medication name** in Armenian, Russian, or English
 - **Get a plain-language explanation** in both Armenian and Russian simultaneously
@@ -34,7 +34,7 @@ No Armenian-language medication explainer existed — until now.
 **Input:** `Amoxicillin`
 
 **Armenian (summary_hy):**
-> Ամoxicillin-ը հակabiotik е, vorы oqtagortsac є baктериalakan varkutyunneri dem, айnpisi1 shunchitak, parankevorum yev djayner:
+> Ամoxicillin-ը հակabiotik е, vorы oqtagortsac է baктериalakan varkutyunneri dem, aynnpisi shunchitak, parankevorum yev djayner:
 
 **Russian (summary_ru):**
 > Амоксициллин — антибиотик, который борется с бактериальными инфекциями: ушными инфекциями, ангиной и пневмонией.
@@ -50,7 +50,7 @@ No Armenian-language medication explainer existed — until now.
 **What it does:** Reduces fever and relieves mild to moderate pain
 
 **Armenian explanation:**
-> Парасетамол-ը (ацетаминофен) ցаvazrаkum е djermutyan yev batkem mjiayin цаvere:
+> Парасетамол-ը (ацетаминофен) tsavazrakum e djermutyan yev batkem mjiayin tsavere:
 
 **Doctor signal:** `routine` — Common OTC medication, safe when used as directed
 
@@ -62,7 +62,7 @@ No Armenian-language medication explainer existed — until now.
 
 **Verdict:** 🔴 `dangerous`
 
-**Armenian:** Aspirin yev Warfarin-i mijavsorum կarоg е zkayatsel aryan mecanelutyan vтangavorutyan аvіlаcіа.
+**Armenian:** Aspirin yev Warfarin-i mijavsorum karog e zkayatsel aryan mecanelutyan vtangavorutyan avdzelacum.
 
 **Russian:** Сочетание аспирина и варфарина значительно увеличивает риск кровотечения. Это опасная комбинация.
 
@@ -90,13 +90,10 @@ No Armenian-language medication explainer existed — until now.
 
 ```bash
 # Clone
-git clone https://github.com/VaheMaleryan/deghatun.git
-cd deghatun
+git clone https://github.com/VaheMaleryan/aybolit.git
+cd aybolit
 
 # Backend
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
 export GROQ_API_KEY=your_key_here
 uvicorn api.main:app --reload --port 8000
 
@@ -160,21 +157,21 @@ Total queries, total interaction checks, uptime.
 
 1. Push this repo to GitHub
 2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub repo
-3. Select `VaheMaleryan/deghatun`
+3. Select `VaheMaleryan/aybolit`
 4. Set environment variables:
    - `GROQ_API_KEY` → your Groq API key
-   - `DEGHATUN_DB` → `/tmp/deghatun.db`
+   - `DEGHATUN_DB` → `/tmp/aybolit.db`
 5. Railway auto-detects `render.yaml` and deploys
-6. Copy the generated Railway URL and update `API_BASE` in frontend components
+6. The `VITE_API_URL` in `frontend/.env.production` already points to `https://aybolit-api.up.railway.app`
 
 ---
 
 ## Disclaimer
 
-> **Deghatun provides educational information only.**
+> **Aybolit provides educational information only.**
 > Always consult a licensed physician or pharmacist for medical decisions.
-> Deghatun is not a substitute for professional medical advice, diagnosis, or treatment.
-> Never disregard professional medical advice or delay seeking it because of information provided by Deghatun.
+> Aybolit is not a substitute for professional medical advice, diagnosis, or treatment.
+> Never disregard professional medical advice or delay seeking it because of information provided by Aybolit.
 
 ---
 

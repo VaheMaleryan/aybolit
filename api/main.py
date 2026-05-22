@@ -1,0 +1,148 @@
+import time
+import sqlite3
+import os
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+from .schemas import MedRequest, MedResponse, InteractionRequest, InteractionResponse, SearchResponse
+from .drug_data import fetch_drug_info, search_drug_names
+from .explainer import explain_medication
+from .interactions import process_interaction
+
+DB_PATH = os.environ.get("DEGHATUN_DB", "./deghatun.db")
+START_TIME = time.time()
+
+limiter = Limiter(key_func=get_remote_address)
+
+
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS stats (key TEXT PRIMARY KEY, value INTEGER)"
+    )
+    conn.execute("INSERT OR IGNORE INTO stats VALUES ('total_queries', 0)")
+    conn.execute("INSERT OR IGNORE INTO stats VALUES ('total_interactions', 0)")
+    conn.commit()
+    conn.close()
+
+
+def increment_stat(key: str):
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        conn.execute(f"UPDATE stats SET value = value + 1 WHERE key = ?", (key,))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+
+
+def get_stats() -> dict:
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        rows = conn.execute("SELECT key, value FROM stats").fetchall()
+        conn.close()
+        return {k: v for k, v in rows}
+    except Exception:
+        return {}
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    init_db()
+    yield
+
+
+app = FastAPI(
+    title="Deghatun API",
+    description="Armenian Medication Intelligence Assistant",
+    version="1.0.0",
+    lifespan=lifespan,
+)
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://vahemaleryan.github.io",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.middleware("http")
+async def add_powered_by_header(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["x-powered-by"] = "Deghatun"
+    return response
+
+
+@app.get("/health")
+async def health():
+    return {"status": "ok", "service": "Deghatun"}
+
+
+@app.get("/stats")
+async def stats():
+    data = get_stats()
+    return {
+        "total_queries": data.get("total_queries", 0),
+        "total_interactions": data.get("total_interactions", 0),
+        "uptime_seconds": round(time.time() - START_TIME, 1),
+    }
+
+
+@app.get("/search", response_model=SearchResponse)
+@limiter.limit("30/minute")
+async def search(request: Request, q: str = ""):
+    if len(q.strip()) < 2:
+        return SearchResponse(suggestions=[])
+    suggestions = search_drug_names(q.strip())
+    return SearchResponse(suggestions=suggestions)
+
+
+@app.post("/explain", response_model=MedResponse)
+@limiter.limit("20/minute")
+async def explain(request: Request, body: MedRequest):
+    start = time.time()
+    drug_data = fetch_drug_info(body.drug_name)
+    found = drug_data.get("found", False)
+    source = "openFDA + Groq" if found else "AI knowledge only"
+
+    ai = explain_medication(body.drug_name, drug_data, body.language)
+    elapsed = (time.time() - start) * 1000
+    increment_stat("total_queries")
+
+    return MedResponse(
+        drug_name=body.drug_name,
+        found=found,
+        summary_hy=ai.get("summary_hy", ""),
+        summary_ru=ai.get("summary_ru", ""),
+        what_it_does=ai.get("what_it_does", ""),
+        side_effects=ai.get("side_effects", []),
+        dosage_guidance=ai.get("dosage_guidance", ""),
+        doctor_signal=ai.get("doctor_signal", "routine"),
+        doctor_reason=ai.get("doctor_reason", ""),
+        safe_with_food=ai.get("safe_with_food", True),
+        processing_time_ms=round(elapsed, 2),
+        model=ai.get("model", "llama-3.3-70b-versatile"),
+        source=source,
+    )
+
+
+@app.post("/interaction", response_model=InteractionResponse)
+@limiter.limit("20/minute")
+async def interaction(request: Request, body: InteractionRequest):
+    result = process_interaction(body.drug1, body.drug2, body.language)
+    increment_stat("total_interactions")
+    return result

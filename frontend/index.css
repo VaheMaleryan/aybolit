@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #FAFAF9;
+    color: #1A1917;
+    font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  }
+
+  h1, h2, h3 {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+}
+
+@layer components {
+  .card {
+    @apply bg-white border border-warm-border rounded-xl p-6 shadow-sm;
+  }
+
+  .btn-primary {
+    @apply bg-arm-red text-white font-plex font-medium px-6 py-3 rounded-lg hover:bg-arm-red-light transition-colors duration-200;
+  }
+
+  .btn-secondary {
+    @apply border border-warm-border text-warm-text font-plex font-medium px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-colors duration-200;
+  }
+
+  .lang-btn {
+    @apply px-3 py-1.5 rounded-md text-sm font-plex font-medium transition-colors duration-200;
+  }
+
+  .lang-btn-active {
+    @apply bg-arm-red text-white;
+  }
+
+  .lang-btn-inactive {
+    @apply text-warm-muted hover:text-warm-text hover:bg-gray-100;
+  }
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: #dc2626; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
+  50% { border-color: #ef4444; box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+}
+
+.emergency-pulse {
+  animation: pulse-border 2s ease-in-out infinite;
+}

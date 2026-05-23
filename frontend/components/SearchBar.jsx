@@ -1,15 +1,15 @@
 import { useState, useEffect, useRef } from 'react'
 
 const PLACEHOLDERS = {
-  hy: 'Մուտքագրեք դեղամիջոցի անունը...',
-  ru: 'Введите название лекарства...',
-  en: 'Enter medication name...',
+  hy: 'Դեղամիջոցի անունը...',
+  ru: 'Название лекарства...',
+  en: 'Medication name...',
 }
 
 const BUTTON_LABELS = {
-  hy: 'Բացատրել',
-  ru: 'Объяснить',
-  en: 'Explain',
+  hy: 'Բացատրել դեղամիջոցը',
+  ru: 'Объяснить лекарство',
+  en: 'Explain medication',
 }
 
 const LOADING_LABELS = {
@@ -18,14 +18,25 @@ const LOADING_LABELS = {
   en: 'Explaining...',
 }
 
+const HINTS = {
+  hy: 'Մուտքագրեք հայերեն, ռուսերեն կամ անգլերեն',
+  ru: 'Введите на армянском, русском или английском',
+  en: 'Type in Armenian, Russian, or English',
+}
+
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
-export default function SearchBar({ onSearch, language, loading }) {
-  const [query, setQuery] = useState('')
+export default function SearchBar({ onSearch, language, loading, initialValue = '' }) {
+  const [query, setQuery] = useState(initialValue)
   const [suggestions, setSuggestions] = useState([])
   const [showSuggestions, setShowSuggestions] = useState(false)
   const debounceRef = useRef(null)
   const wrapperRef = useRef(null)
+
+  // Keep query in sync if parent passes a new initial value (e.g. OCR → Explain handoff)
+  useEffect(() => {
+    if (initialValue) setQuery(initialValue)
+  }, [initialValue])
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -75,57 +86,45 @@ export default function SearchBar({ onSearch, language, loading }) {
   }
 
   return (
-    <div ref={wrapperRef} className="relative w-full max-w-2xl mx-auto">
-      <form onSubmit={handleSubmit} className="flex gap-3">
-        <div className="relative flex-1">
-          <span
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-xl pointer-events-none select-none"
-            aria-hidden
-          >
-            💊
-          </span>
-          <input
-            type="text"
-            value={query}
-            onChange={handleInput}
-            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
-            placeholder={PLACEHOLDERS[language]}
-            className="w-full pl-12 pr-5 py-3.5 text-base sm:text-lg border-2 border-warm-border rounded-xl bg-white font-plex text-warm-text placeholder-warm-muted focus:outline-none focus:border-arm-red focus:ring-4 focus:ring-arm-red/10 transition-all duration-200"
-            style={{ minHeight: 52 }}
-            disabled={loading}
-          />
-          {showSuggestions && suggestions.length > 0 && (
-            <ul className="absolute top-full left-0 right-0 mt-1 bg-white border border-warm-border rounded-xl shadow-lg z-50 overflow-hidden">
-              {suggestions.map((s, i) => (
-                <li key={i}>
-                  <button
-                    type="button"
-                    onClick={() => handleSelect(s)}
-                    className="w-full text-left px-5 py-3 font-plex text-warm-text hover:bg-gray-50 transition-colors duration-150 border-b border-warm-border last:border-b-0"
-                  >
-                    {s}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-        <button
-          type="submit"
-          disabled={loading || query.trim().length < 2}
-          className="btn-primary whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? (
-            <span className="flex items-center gap-2">
-              <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-              </svg>
-              {LOADING_LABELS[language]}
-            </span>
-          ) : BUTTON_LABELS[language]}
-        </button>
-      </form>
-    </div>
+    <form ref={wrapperRef} onSubmit={handleSubmit} className="w-full space-y-3">
+      <div className="relative">
+        <input
+          type="text"
+          value={query}
+          onChange={handleInput}
+          onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+          placeholder={PLACEHOLDERS[language]}
+          className="input-minimal"
+          disabled={loading}
+        />
+        {showSuggestions && suggestions.length > 0 && (
+          <ul className="absolute top-full left-0 right-0 mt-1 bg-white border border-warm-border rounded-lg overflow-hidden z-30">
+            {suggestions.map((s, i) => (
+              <li key={i}>
+                <button
+                  type="button"
+                  onClick={() => handleSelect(s)}
+                  className="w-full text-left px-4 py-2.5 font-plex text-warm-text text-sm hover:bg-gray-50 border-b border-warm-border last:border-b-0"
+                >
+                  {s}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <p className="text-warm-placeholder font-plex" style={{ fontSize: 12 }}>
+        {HINTS[language]}
+      </p>
+
+      <button
+        type="submit"
+        disabled={loading || query.trim().length < 2}
+        className="btn-dark"
+      >
+        {loading ? LOADING_LABELS[language] : BUTTON_LABELS[language]}
+      </button>
+    </form>
   )
 }

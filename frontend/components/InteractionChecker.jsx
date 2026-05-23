@@ -1,7 +1,5 @@
 import { useState } from 'react'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
-
 const LABELS = {
   hy: {
     drug1: 'Առաջին դեղամիջոց',
@@ -11,19 +9,17 @@ const LABELS = {
     armenian: 'Հայերեն',
     russian: 'Ռուսերեն',
     recommendation: 'Խորհուրդ',
-    severity: 'Ծանրության աստիճան',
-    error: 'Չհաջողվեց ստուգել: Փորձեք նորից:',
+    severity: 'Ծանրություն',
   },
   ru: {
     drug1: 'Первое лекарство',
     drug2: 'Второе лекарство',
     button: 'Проверить взаимодействие',
     checking: 'Проверяем...',
-    armenian: 'По-армянски',
-    russian: 'По-русски',
+    armenian: 'Армянский',
+    russian: 'Русский',
     recommendation: 'Рекомендация',
-    severity: 'Степень тяжести',
-    error: 'Не удалось проверить. Попробуйте ещё раз.',
+    severity: 'Тяжесть',
   },
   en: {
     drug1: 'First medication',
@@ -34,181 +30,144 @@ const LABELS = {
     russian: 'Russian',
     recommendation: 'Recommendation',
     severity: 'Severity',
-    error: 'Could not check interaction. Please try again.',
   },
 }
 
-const VERDICT_CONFIG = {
+const VERDICT = {
   safe: {
-    bg: 'bg-green-50',
-    border: 'border-green-300',
-    icon: '✓',
-    iconBg: 'bg-green-100',
-    iconColor: 'text-green-700',
-    title: {
-      hy: 'Ընդհանուր առմամբ անվտանգ համատեղ ընդունման համար',
-      ru: 'Обычно безопасно принимать вместе',
-      en: 'Generally safe together',
-    },
-    titleColor: 'text-green-800',
+    leftBorder: '#2D6A4F',
+    title: { hy: 'Անվտանգ — սովորաբար կարելի է միասին ընդունել',
+             ru: 'Безопасно — обычно можно принимать вместе',
+             en: 'Safe — generally fine to take together' },
   },
   caution: {
-    bg: 'bg-amber-50',
-    border: 'border-amber-300',
-    icon: '⚠',
-    iconBg: 'bg-amber-100',
-    iconColor: 'text-amber-700',
-    title: {
-      hy: 'Զգուշորեն — հետևեք ախտանիշերին',
-      ru: 'С осторожностью — следите за симптомами',
-      en: 'Use with caution — monitor symptoms',
-    },
-    titleColor: 'text-amber-800',
+    leftBorder: '#B45309',
+    title: { hy: 'Զգուշորեն — հետևեք ախտանիշերին',
+             ru: 'С осторожностью — следите за симптомами',
+             en: 'Caution — monitor symptoms' },
   },
   dangerous: {
-    bg: 'bg-red-50',
-    border: 'border-red-400',
-    icon: '⚠',
-    iconBg: 'bg-red-100',
-    iconColor: 'text-red-700',
-    title: {
-      hy: 'Վտանգավոր համակցություն — անհապաղ դիմեք բժշկի',
-      ru: 'Опасное сочетание — немедленно обратитесь к врачу',
-      en: 'Dangerous combination — consult doctor immediately',
-    },
-    titleColor: 'text-red-800',
+    leftBorder: '#991B1B',
+    title: { hy: 'Վտանգավոր — անհապաղ դիմեք բժշկի',
+             ru: 'Опасно — немедленно обратитесь к врачу',
+             en: 'Dangerous — consult a doctor immediately' },
   },
 }
 
-export default function InteractionChecker({ language }) {
+
+export function InteractionForm({ language, loading, onSubmit }) {
+  const L = LABELS[language] || LABELS.en
   const [drug1, setDrug1] = useState('')
   const [drug2, setDrug2] = useState('')
-  const [result, setResult] = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
 
-  const L = LABELS[language] || LABELS.en
-
-  async function handleCheck(e) {
+  function handleSubmit(e) {
     e.preventDefault()
-    if (!drug1.trim() || !drug2.trim()) return
-    setLoading(true)
-    setError('')
-    setResult(null)
-    try {
-      const res = await fetch(`${API_BASE}/interaction`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ drug1: drug1.trim(), drug2: drug2.trim(), language }),
-      })
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}))
-        throw new Error(err.detail || `HTTP ${res.status}`)
-      }
-      const data = await res.json()
-      setResult(data)
-    } catch (e) {
-      setError(e.message ? `${L.error} (${e.message})` : L.error)
-    } finally {
-      setLoading(false)
+    if (drug1.trim().length >= 2 && drug2.trim().length >= 2) {
+      onSubmit(drug1.trim(), drug2.trim())
     }
   }
 
-  const verdict = result ? VERDICT_CONFIG[result.verdict] || VERDICT_CONFIG.caution : null
+  const disabled = loading || drug1.trim().length < 2 || drug2.trim().length < 2
 
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-6">
-      <form onSubmit={handleCheck} className="card space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-plex font-medium text-warm-muted mb-1.5">
-              {L.drug1}
-            </label>
-            <input
-              type="text"
-              value={drug1}
-              onChange={e => setDrug1(e.target.value)}
-              placeholder="e.g. Aspirin"
-              className="w-full px-4 py-3 border-2 border-warm-border rounded-lg font-plex text-warm-text placeholder-warm-muted focus:outline-none focus:border-arm-red transition-colors"
-              disabled={loading}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-plex font-medium text-warm-muted mb-1.5">
-              {L.drug2}
-            </label>
-            <input
-              type="text"
-              value={drug2}
-              onChange={e => setDrug2(e.target.value)}
-              placeholder="e.g. Warfarin"
-              className="w-full px-4 py-3 border-2 border-warm-border rounded-lg font-plex text-warm-text placeholder-warm-muted focus:outline-none focus:border-arm-red transition-colors"
-              disabled={loading}
-            />
-          </div>
-        </div>
-        <button
-          type="submit"
-          disabled={loading || drug1.trim().length < 2 || drug2.trim().length < 2}
-          className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loading ? L.checking : L.button}
-        </button>
-      </form>
+    <form onSubmit={handleSubmit} className="w-full space-y-3">
+      <div>
+        <label className="block text-warm-muted font-plex mb-1.5" style={{ fontSize: 12 }}>
+          {L.drug1}
+        </label>
+        <input
+          type="text"
+          value={drug1}
+          onChange={e => setDrug1(e.target.value)}
+          placeholder="e.g. Aspirin"
+          className="input-minimal"
+          disabled={loading}
+        />
+      </div>
+      <div>
+        <label className="block text-warm-muted font-plex mb-1.5" style={{ fontSize: 12 }}>
+          {L.drug2}
+        </label>
+        <input
+          type="text"
+          value={drug2}
+          onChange={e => setDrug2(e.target.value)}
+          placeholder="e.g. Warfarin"
+          className="input-minimal"
+          disabled={loading}
+        />
+      </div>
+      <button type="submit" disabled={disabled} className="btn-dark">
+        {loading ? L.checking : L.button}
+      </button>
+    </form>
+  )
+}
 
-      {error && (
-        <div className="card border-red-200 bg-red-50">
-          <p className="font-plex text-red-700 text-sm">{error}</p>
+
+export function InteractionResult({ result, language }) {
+  if (!result) return null
+  const L = LABELS[language] || LABELS.en
+  const cfg = VERDICT[result.verdict] || VERDICT.caution
+  const title = cfg.title[language] || cfg.title.en
+  const expHy = result.explanation_hy || ''
+  const expRu = result.explanation_ru || ''
+
+  return (
+    <div className="space-y-4">
+      <div
+        className="card-min"
+        style={{ borderLeft: `3px solid ${cfg.leftBorder}` }}
+      >
+        <p className="text-warm-muted font-mono uppercase tracking-wider" style={{ fontSize: 11 }}>
+          {result.drug1} + {result.drug2}
+        </p>
+        <h3 className="font-playfair text-warm-text mt-1.5" style={{ fontSize: 18, fontWeight: 700 }}>
+          {title}
+        </h3>
+      </div>
+
+      {(expHy || expRu) && (
+        <div className="card-min">
+          {expHy && (
+            <div>
+              <p className="text-warm-muted font-mono uppercase tracking-wider mb-1.5" style={{ fontSize: 11 }}>
+                {L.armenian}
+              </p>
+              <p className="font-plex text-warm-text" style={{ fontSize: 14, lineHeight: 1.7 }}>
+                {expHy}
+              </p>
+            </div>
+          )}
+          {expHy && expRu && <div className="my-4 border-t border-warm-border" />}
+          {expRu && (
+            <div>
+              <p className="text-warm-muted font-mono uppercase tracking-wider mb-1.5" style={{ fontSize: 11 }}>
+                {L.russian}
+              </p>
+              <p className="font-plex text-warm-text" style={{ fontSize: 14, lineHeight: 1.7 }}>
+                {expRu}
+              </p>
+            </div>
+          )}
         </div>
       )}
 
-      {result && verdict && (
-        <div className={`card border-2 ${verdict.bg} ${verdict.border}`}>
-          <div className="flex items-center gap-3 mb-4">
-            <span className={`text-2xl w-10 h-10 flex items-center justify-center rounded-full ${verdict.iconBg} ${verdict.iconColor} font-bold`}>
-              {verdict.icon}
-            </span>
-            <div>
-              <p className="font-plex text-xs text-warm-muted uppercase tracking-wide">
-                {result.drug1} + {result.drug2}
-              </p>
-              <h3 className={`font-playfair text-xl font-semibold ${verdict.titleColor}`}>
-                {verdict.title[language] || verdict.title.en}
-              </h3>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <p className="text-xs font-plex font-semibold text-warm-muted uppercase tracking-wide mb-1.5">
-                🇦🇲 {L.armenian}
-              </p>
-              <p className="font-playfair text-warm-text leading-relaxed">{result.explanation_hy}</p>
-            </div>
-            <div>
-              <p className="text-xs font-plex font-semibold text-warm-muted uppercase tracking-wide mb-1.5">
-                🇷🇺 {L.russian}
-              </p>
-              <p className="font-plex text-warm-text leading-relaxed">{result.explanation_ru}</p>
-            </div>
-          </div>
-
-          {result.recommendation && (
-            <div className="border-t border-current border-opacity-20 pt-4">
-              <p className="text-xs font-plex font-semibold text-warm-muted uppercase tracking-wide mb-1.5">
-                {L.recommendation}
-              </p>
-              <p className="font-plex text-warm-text">{result.recommendation}</p>
-            </div>
-          )}
-
-          {result.severity && result.severity !== 'none' && (
-            <p className="text-xs font-plex text-warm-muted mt-3">
-              {L.severity}: <span className="font-medium capitalize">{result.severity}</span>
-              {' · '}{result.processing_time_ms.toFixed(0)}ms
-            </p>
-          )}
+      {result.recommendation && (
+        <div className="card-min">
+          <p className="text-warm-muted font-mono uppercase tracking-wider mb-1.5" style={{ fontSize: 11 }}>
+            {L.recommendation}
+          </p>
+          <p className="font-plex text-warm-text" style={{ fontSize: 14, lineHeight: 1.7 }}>
+            {result.recommendation}
+          </p>
         </div>
+      )}
+
+      {result.severity && result.severity !== 'none' && (
+        <p className="font-mono text-warm-placeholder text-center" style={{ fontSize: 11 }}>
+          {L.severity}: {result.severity} · {result.processing_time_ms?.toFixed(0)}ms
+        </p>
       )}
     </div>
   )

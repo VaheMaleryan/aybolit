@@ -7,7 +7,6 @@
     background-color: #FAFAF9;
     color: #1A1917;
     font-family: 'IBM Plex Sans', system-ui, sans-serif;
-    /* Prevent iOS Safari auto-zoom on focus */
     -webkit-text-size-adjust: 100%;
   }
 
@@ -15,44 +14,51 @@
     font-family: 'Playfair Display', Georgia, serif;
   }
 
-  /* Inputs need to be at least 16px on iOS to avoid auto-zoom */
+  /* Prevent iOS auto-zoom on input focus. */
   input, textarea, select {
     font-size: 16px;
   }
 }
 
 @layer components {
-  /* Slightly more padding, rounder corners, soft elevation. */
-  .card {
-    @apply bg-white border border-warm-border rounded-2xl p-5 sm:p-[18px] transition-shadow duration-200;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  /* ── Inputs (used in Explain, Interaction, and Scan forms) ── */
+  .input-minimal {
+    @apply w-full px-4 bg-white text-warm-text placeholder-warm-placeholder
+           border border-warm-border rounded-lg
+           focus:outline-none focus:border-arm-red
+           transition-colors duration-200;
+    height: 48px;
+    font-size: 15px;
   }
 
-  .btn-primary {
-    @apply bg-arm-red text-white font-plex font-medium px-6 py-3 rounded-lg hover:bg-arm-red-light transition-colors duration-200;
+  /* ── Buttons ── */
+  .btn-dark {
+    @apply w-full bg-warm-text text-white font-plex font-medium
+           rounded-lg hover:bg-arm-red transition-colors duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    height: 44px;
+    font-size: 14px;
   }
 
-  .btn-secondary {
-    @apply border border-warm-border text-warm-text font-plex font-medium px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-colors duration-200;
-  }
-
+  /* ── Language toggle (HY | RU | EN) ── */
   .lang-btn {
-    @apply px-3 py-1.5 rounded-md text-sm font-plex font-medium transition-colors duration-200;
+    @apply font-plex transition-colors duration-150;
+    font-size: 13px;
+    padding: 0 6px;
   }
-
   .lang-btn-active {
-    @apply bg-arm-red text-white;
+    @apply text-warm-text font-semibold;
   }
-
   .lang-btn-inactive {
-    @apply text-warm-muted hover:text-warm-text hover:bg-gray-100;
+    @apply text-warm-muted font-normal hover:text-warm-text;
   }
 
-  /* Tab buttons — underline-on-active style */
+  /* ── Tabs (Explain | Interaction | Scan) ── */
   .tab-btn {
-    @apply relative px-3 sm:px-5 py-2.5 font-plex text-sm sm:text-base
-           transition-colors duration-200 whitespace-nowrap
+    @apply relative font-plex transition-colors duration-200 whitespace-nowrap
            focus:outline-none;
+    font-size: 14px;
+    padding-bottom: 12px;
   }
   .tab-btn-active {
     @apply text-warm-text font-semibold;
@@ -60,29 +66,25 @@
   .tab-btn-active::after {
     content: '';
     position: absolute;
-    left: 12%;
-    right: 12%;
+    left: 0;
+    right: 0;
     bottom: -1px;
-    height: 3px;
+    height: 2px;
     background-color: #8B1A1A;
-    border-radius: 2px 2px 0 0;
   }
   .tab-btn-inactive {
-    @apply text-warm-muted font-medium hover:text-warm-text;
+    color: #9B9690;
+    @apply font-normal hover:text-warm-text;
   }
 
-  /* Citation chip used at the bottom of MedCard */
-  .citation-pill {
-    @apply inline-flex items-center px-2.5 py-1 rounded-full
-           bg-gray-100 text-gray-700 text-xs font-plex font-medium;
+  /* ── Cards (no colored backgrounds, no colored borders) ── */
+  .card-min {
+    @apply bg-white border border-warm-border rounded-lg p-5;
   }
-}
 
-@keyframes pulse-border {
-  0%, 100% { border-color: #dc2626; box-shadow: -4px 0 0 0 #dc2626, 0 0 0 0 rgba(220, 38, 38, 0.4); }
-  50% { border-color: #ef4444; box-shadow: -4px 0 0 0 #ef4444, 0 0 0 6px rgba(220, 38, 38, 0); }
-}
-
-.emergency-pulse {
-  animation: pulse-border 2s ease-in-out infinite;
+  /* ── Citation pill (gray mono) ── */
+  .citation-mono {
+    @apply inline-flex items-center font-mono text-warm-muted;
+    font-size: 11px;
+  }
 }

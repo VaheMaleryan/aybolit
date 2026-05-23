@@ -1,71 +1,33 @@
-const SIGNAL_CONFIG = {
+// Minimal single-line doctor signal with a left-border accent only.
+// No background tint, no emoji, no pulse.
+const SIGNALS = {
   routine: {
-    bg: 'bg-white',
-    leftBorder: '#16a34a', // green-600
-    icon: '✓',
-    iconColor: 'text-green-600',
-    badgeBg: 'bg-green-100',
-    badgeText: 'text-green-700',
-    badgeLabel: {
-      hy: 'Սովորական դեղամիջոց',
-      ru: 'Обычное лекарство',
-      en: 'Routine medication',
-    },
-    title: {
-      hy: 'Բժշկի այցելություն չի պահանջվում',
-      ru: 'Визит к врачу не требуется',
-      en: 'No immediate doctor visit needed',
+    border: '#2D6A4F',
+    text: {
+      hy: 'Սովորական — բժշկի այցելություն չի պահանջվում',
+      ru: 'Обычное — визит к врачу не требуется',
+      en: 'Routine — no doctor visit needed',
     },
   },
   monitor: {
-    bg: 'bg-amber-50/50',
-    leftBorder: '#d97706', // amber-600
-    icon: '⚠',
-    iconColor: 'text-amber-600',
-    badgeBg: 'bg-amber-100',
-    badgeText: 'text-amber-700',
-    badgeLabel: {
-      hy: 'Հետևեք ախտանիշերին',
-      ru: 'Следите за симптомами',
-      en: 'Monitor symptoms',
-    },
-    title: {
+    border: '#B45309',
+    text: {
       hy: 'Հետևեք ձեր ախտանիշերին',
       ru: 'Следите за симптомами',
-      en: 'Watch your symptoms',
+      en: 'Monitor — watch your symptoms',
     },
   },
   call_doctor: {
-    bg: 'bg-orange-50',
-    leftBorder: '#ea580c', // orange-600
-    icon: '📞',
-    iconColor: 'text-orange-600',
-    badgeBg: 'bg-orange-100',
-    badgeText: 'text-orange-700',
-    badgeLabel: {
-      hy: 'Դիմեք բժշկի',
-      ru: 'Обратитесь к врачу',
-      en: 'Consult doctor',
-    },
-    title: {
+    border: '#C2410C',
+    text: {
       hy: 'Պետք է դիմել բժշկի',
       ru: 'Обратитесь к врачу',
-      en: 'Schedule a doctor visit',
+      en: 'Consult a doctor',
     },
   },
   emergency: {
-    bg: 'bg-red-50',
-    leftBorder: '#dc2626', // red-600
-    icon: '🚨',
-    iconColor: 'text-red-600',
-    badgeBg: 'bg-red-100',
-    badgeText: 'text-red-700',
-    badgeLabel: {
-      hy: 'Շտապ բուժօգնություն',
-      ru: 'Срочная медпомощь',
-      en: 'Seek medical attention',
-    },
-    title: {
+    border: '#991B1B',
+    text: {
       hy: 'Անհապաղ դիմեք բժշկի',
       ru: 'Немедленно обратитесь к врачу',
       en: 'Seek medical attention now',
@@ -73,40 +35,22 @@ const SIGNAL_CONFIG = {
   },
 }
 
-export function SignalBadge({ signal, language = 'en' }) {
-  const cfg = SIGNAL_CONFIG[signal] || SIGNAL_CONFIG.routine
-  const label = cfg.badgeLabel[language] || cfg.badgeLabel.en
-  return (
-    <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-plex font-medium ${cfg.badgeBg} ${cfg.badgeText}`}>
-      <span>{cfg.icon}</span>
-      {label}
-    </span>
-  )
-}
-
 export default function DoctorSignal({ signal, reason, language }) {
-  const cfg = SIGNAL_CONFIG[signal] || SIGNAL_CONFIG.routine
-  const isEmergency = signal === 'emergency'
-
+  const cfg = SIGNALS[signal] || SIGNALS.routine
+  const label = cfg.text[language] || cfg.text.en
   return (
-    <div
-      className={`card ${cfg.bg} ${isEmergency ? 'emergency-pulse' : ''}`}
-      style={{ borderLeft: `4px solid ${cfg.leftBorder}` }}
-    >
-      <div className="flex items-start gap-4">
-        <span className={`text-3xl ${cfg.iconColor} mt-0.5`}>{cfg.icon}</span>
-        <div className="flex-1">
-          <h3 className="font-playfair text-xl font-semibold text-warm-text mb-1">
-            {cfg.title[language] || cfg.title.en}
-          </h3>
-          {reason && (
-            <p className="font-plex text-warm-muted text-sm mt-1">{reason}</p>
-          )}
-          <p className="font-plex text-warm-muted text-sm mt-3 italic border-t border-warm-border pt-3">
-            Կասկածի դեպքում դիմեք բժշկի — При сомнениях обратитесь к врачу
-          </p>
-        </div>
-      </div>
+    <div className="card-min" style={{ borderLeft: `3px solid ${cfg.border}` }}>
+      <p className="font-plex text-warm-text" style={{ fontSize: 14, fontWeight: 500 }}>
+        {label}
+      </p>
+      {reason && (
+        <p
+          className="font-plex text-warm-muted mt-1.5"
+          style={{ fontSize: 13, lineHeight: 1.55 }}
+        >
+          {reason}
+        </p>
+      )}
     </div>
   )
 }

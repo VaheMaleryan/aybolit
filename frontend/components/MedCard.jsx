@@ -1,143 +1,134 @@
-import { SignalBadge } from './DoctorSignal.jsx'
 import SideEffects from './SideEffects.jsx'
 import DoctorSignal from './DoctorSignal.jsx'
 import DosageCard from './DosageCard.jsx'
-import { MedicationTypeBadge, PrescriptionBadge } from './MedBadges.jsx'
 
 const LABELS = {
   hy: {
-    what: 'Ինչի համար է',
-    dosage: 'Դոզավորում և ընդունում',
-    armenian: 'Հայերեն բացատրություն',
-    russian: 'Ռուսերեն բացատրություն',
-    food: 'Կարելի է ուտելիքով',
-    noFood: 'Ընդունել առանց ուտելիքի',
-    aiNote: 'միայն ԱԲ գիտելիք',
-    source: 'Աղբյուր',
-    sources: 'Աղբյուրներ',
-    aiOnly: 'Աղբյուր: Groq ԱԲ',
-    disclaimer:
-      'Միայն տեղեկատվական նպատակով։ Միշտ խորհրդակցեք լիցենզավորված դեղագործի կամ բժշկի հետ։',
+    armenian: 'Հայերեն',
+    russian: 'Ռուսերեն',
+    sourcesPrefix: 'Աղբյուրներ',
+    verified: 'Հաստատված է OpenFDA-ի տվյալների բազայով',
+    notVerified: 'Աղբյուր: Groq AI',
+    aiOnly: 'AI knowledge only',
+    rx: 'Rx',
+    otc: 'OTC',
   },
   ru: {
-    what: 'Для чего это лекарство',
-    dosage: 'Дозировка и приём',
-    armenian: 'Объяснение на армянском',
-    russian: 'Объяснение на русском',
-    food: 'Можно принимать с едой',
-    noFood: 'Принимать натощак',
-    aiNote: 'только знания ИИ',
-    source: 'Источник',
-    sources: 'Источники',
-    aiOnly: 'Источник: знания Groq AI',
-    disclaimer:
-      'Только в информационных целях. Всегда консультируйтесь с лицензированным фармацевтом или врачом.',
+    armenian: 'Армянский',
+    russian: 'Русский',
+    sourcesPrefix: 'Источники',
+    verified: 'Проверено по базе OpenFDA',
+    notVerified: 'Источник: Groq AI',
+    aiOnly: 'AI knowledge only',
+    rx: 'Rx',
+    otc: 'OTC',
   },
   en: {
-    what: 'What it does',
-    dosage: 'Dosage & Timing',
-    armenian: 'Armenian explanation',
-    russian: 'Russian explanation',
-    food: 'Safe with food',
-    noFood: 'Take without food',
-    aiNote: 'AI knowledge only',
-    source: 'Source',
-    sources: 'Sources',
-    aiOnly: 'Source: Groq AI knowledge',
-    disclaimer:
-      'For informational purposes only. Always consult a licensed pharmacist or physician.',
+    armenian: 'Armenian',
+    russian: 'Russian',
+    sourcesPrefix: 'Sources',
+    verified: 'Verified against OpenFDA database',
+    notVerified: 'Source: Groq AI',
+    aiOnly: 'AI knowledge only',
+    rx: 'Rx',
+    otc: 'OTC',
   },
+}
+
+function RxBadge({ requiresPrescription, L }) {
+  if (requiresPrescription === null || requiresPrescription === undefined) return null
+  const label = requiresPrescription ? L.rx : L.otc
+  return (
+    <span
+      className="inline-flex items-center font-mono font-medium text-warm-muted border border-warm-border rounded px-2 py-0.5"
+      style={{ fontSize: 11 }}
+    >
+      {label}
+    </span>
+  )
 }
 
 export default function MedCard({ data, language }) {
   const L = LABELS[language] || LABELS.en
 
   return (
-    <div className="space-y-4 w-full max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="card">
-        <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-          <div>
-            <h2 className="font-playfair text-3xl font-bold text-warm-text">{data.drug_name}</h2>
-            {!data.found && (
-              <span className="inline-block mt-1 text-xs font-plex text-amber-600 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-0.5">
-                {L.source}: {L.aiNote}
-              </span>
-            )}
-          </div>
+    <div className="w-full space-y-4">
+      {/* ── 1. Summary ── */}
+      <div className="card-min">
+        <div className="flex items-center gap-2 flex-wrap mb-4">
+          <h2 className="font-playfair text-warm-text" style={{ fontSize: 18, fontWeight: 700 }}>
+            {data.drug_name}
+          </h2>
+          <RxBadge requiresPrescription={data.requires_prescription} L={L} />
+          {!data.found && (
+            <span
+              className="font-mono text-warm-muted border border-warm-border rounded px-2 py-0.5"
+              style={{ fontSize: 11 }}
+            >
+              {L.aiOnly}
+            </span>
+          )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <MedicationTypeBadge type={data.medication_type} language={language} />
-          <PrescriptionBadge requiresPrescription={data.requires_prescription} language={language} />
-          <SignalBadge signal={data.doctor_signal} language={language} />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {data.summary_hy && (
+            <div>
+              <p
+                className="font-mono text-warm-muted uppercase tracking-wider mb-1.5"
+                style={{ fontSize: 11 }}
+              >
+                {L.armenian}
+              </p>
+              <p
+                className="font-plex text-warm-text"
+                style={{ fontSize: 14, lineHeight: 1.7 }}
+              >
+                {data.summary_hy}
+              </p>
+            </div>
+          )}
+          {data.summary_ru && (
+            <div>
+              <p
+                className="font-mono text-warm-muted uppercase tracking-wider mb-1.5"
+                style={{ fontSize: 11 }}
+              >
+                {L.russian}
+              </p>
+              <p
+                className="font-plex text-warm-text"
+                style={{ fontSize: 14, lineHeight: 1.7 }}
+              >
+                {data.summary_ru}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* What it does */}
-      <div className="card">
-        <p className="font-playfair text-xl text-warm-text leading-relaxed">{data.what_it_does}</p>
-        <div className="flex items-center gap-2 mt-3">
-          <span className={`text-sm font-plex font-medium px-2.5 py-1 rounded-full ${data.safe_with_food ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-            {data.safe_with_food ? `✓ ${L.food}` : `✗ ${L.noFood}`}
-          </span>
-        </div>
-      </div>
-
-      {/* Bilingual explanation */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="card bg-amber-50 border-amber-100">
-          <h3 className="font-playfair text-sm font-semibold text-warm-muted uppercase tracking-wide mb-3">
-            🇦🇲 {L.armenian}
-          </h3>
-          <p className="font-playfair text-lg text-warm-text leading-relaxed">{data.summary_hy}</p>
-        </div>
-        <div className="card bg-blue-50 border-blue-100">
-          <h3 className="font-plex text-sm font-semibold text-warm-muted uppercase tracking-wide mb-3">
-            🇷🇺 {L.russian}
-          </h3>
-          <p className="font-plex text-base text-warm-text leading-relaxed">{data.summary_ru}</p>
-        </div>
-      </div>
-
-      {/* Structured dosage card */}
+      {/* ── 2. How to take ── */}
       <DosageCard card={data.dosage_card} language={language} />
 
-      {/* Free-text dosage paragraph (fallback / additional context) */}
-      {data.dosage_guidance && (
-        <div className="card">
-          <h3 className="font-playfair text-xl font-semibold text-warm-text mb-3">{L.dosage}</h3>
-          <p className="font-plex text-warm-text leading-relaxed">{data.dosage_guidance}</p>
-        </div>
-      )}
-
-      {/* Side effects */}
+      {/* ── 3. Side effects ── */}
       <SideEffects effects={data.side_effects} language={language} />
 
-      {/* Doctor signal */}
-      <DoctorSignal signal={data.doctor_signal} reason={data.doctor_reason} language={language} />
+      {/* ── 4. Doctor signal ── */}
+      <DoctorSignal
+        signal={data.doctor_signal}
+        reason={data.doctor_reason}
+        language={language}
+      />
 
-      {/* Sources / citations — RAG provenance */}
-      <div className="card">
-        <h3 className="font-plex text-xs font-semibold uppercase tracking-wider text-warm-muted mb-2">
-          {L.sources}
-        </h3>
-        {data.rag_used && data.citations && data.citations.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5">
-            {data.citations.map((c, i) => (
-              <span key={i} className="citation-pill">{c}</span>
-            ))}
-          </div>
-        ) : (
-          <p className="font-plex text-sm text-warm-text">{L.aiOnly}</p>
-        )}
-        <p className="font-plex text-xs text-warm-muted italic mt-3 border-t border-warm-border pt-3">
-          {L.disclaimer}
-        </p>
-      </div>
-
-      {/* Meta */}
-      <p className="text-center text-xs font-plex text-warm-muted">
-        {data.source} · {data.model} · {data.processing_time_ms.toFixed(0)}ms
+      {/* ── 5. Sources ── */}
+      <p
+        className="font-mono text-warm-placeholder text-center pt-2"
+        style={{ fontSize: 11 }}
+      >
+        {data.rag_used && data.citations && data.citations.length > 0
+          ? L.verified
+          : L.notVerified}
+        {' · '}
+        {data.processing_time_ms?.toFixed(0)}ms
       </p>
     </div>
   )

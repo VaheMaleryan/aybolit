@@ -3,13 +3,14 @@ import SearchBar from './components/SearchBar.jsx'
 import MedCard from './components/MedCard.jsx'
 import InteractionChecker from './components/InteractionChecker.jsx'
 import DidYouMeanBanner from './components/DidYouMeanBanner.jsx'
+import MedicineScanner from './components/MedicineScanner.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const TABS = {
-  hy: ['Բացատրել դեղամիջոցը', 'Ստուգել համատեղելիությունը'],
-  ru: ['Объяснить лекарство', 'Проверить взаимодействие'],
-  en: ['Explain medication', 'Check interaction'],
+  hy: ['Բացատրել դեղամիջոցը', 'Ստուգել համատեղելիությունը', '📷 Սկանավորել'],
+  ru: ['Объяснить лекарство', 'Проверить взаимодействие', '📷 Сканировать'],
+  en: ['Explain medication', 'Check interaction', '📷 Scan'],
 }
 
 const HERO = {
@@ -181,6 +182,18 @@ export default function App() {
         {/* Tab 2: Interaction checker */}
         {activeTab === 1 && (
           <InteractionChecker language={language} />
+        )}
+
+        {/* Tab 3: OCR scanner */}
+        {activeTab === 2 && (
+          <MedicineScanner
+            language={language}
+            onExplain={(drugName) => {
+              // jump to tab 0 and auto-run the search
+              setActiveTab(0)
+              handleSearch(drugName)
+            }}
+          />
         )}
       </main>
 

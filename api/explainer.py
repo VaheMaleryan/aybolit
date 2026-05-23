@@ -2,8 +2,11 @@ import os
 import re
 import json
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional, TYPE_CHECKING
 from groq import Groq
+
+if TYPE_CHECKING:
+    from .rag import MedicationRAG
 
 logger = logging.getLogger("aybolit.explainer")
 
@@ -142,18 +145,80 @@ def _get_client() -> Groq:
     return Groq(api_key=api_key)
 
 
+def _build_rag_context(
+    rag: "MedicationRAG", drug_name: str, drug_data: Dict[str, Any]
+) -> tuple[str, List[str]]:
+    """Ingest the drug into RAG (if new) and retrieve top chunks for
+    dosage, safety, and interactions. Returns (formatted_context_block,
+    list_of_citation_strings)."""
+    try:
+        rag.add_medication(drug_name, drug_data)
+    except Exception as e:
+        logger.warning(f"RAG ingest failed for {drug_name}: {e}")
+        return "", []
+
+    queries = [
+        f"How to take {drug_name} dosage instructions",
+        f"{drug_name} warnings side effects dangerous",
+        f"{drug_name} interactions contraindications",
+    ]
+    seen_texts = set()
+    unique_chunks: List[Dict] = []
+    for q in queries:
+        try:
+            for chunk in rag.retrieve(q, drug_name, n=3):
+                if chunk["text"] in seen_texts:
+                    continue
+                seen_texts.add(chunk["text"])
+                unique_chunks.append(chunk)
+        except Exception as e:
+            logger.warning(f"RAG retrieve failed: {e}")
+
+    top = unique_chunks[:6]
+    if not top:
+        return "", []
+
+    lines = ["", "VERIFIED MEDICAL DATA (use this, do not contradict):"]
+    for c in top:
+        lines.append(f"[{c['section'].upper()}]: {c['text']}")
+    citations = sorted({f"OpenFDA — {c['section']}" for c in top})
+    return "\n".join(lines), citations
+
+
 def explain_medication(
-    drug_name: str, drug_data: Dict[str, Any], language: str = "hy"
+    drug_name: str,
+    drug_data: Dict[str, Any],
+    language: str = "hy",
+    rag: Optional["MedicationRAG"] = None,
 ) -> Dict[str, Any]:
     client = _get_client()
     lang_name = LANGUAGE_NAMES.get(language, "Armenian")
     drug_data_str = json.dumps(drug_data, ensure_ascii=False, indent=2)
+
+    # Build RAG context if available
+    rag_context = ""
+    citations: List[str] = []
+    rag_used = False
+    if rag is not None:
+        rag_context, citations = _build_rag_context(rag, drug_name, drug_data)
+        rag_used = bool(citations)
 
     system = SYSTEM_PROMPT.format(drug_data=drug_data_str)
     user_prompt = EXPLAIN_PROMPT.format(
         drug_name=drug_name,
         language_name=lang_name,
     )
+    if rag_context:
+        user_prompt = (
+            user_prompt
+            + "\n\n"
+            + rag_context
+            + "\n\nBase your dosage_card and side_effects on the VERIFIED "
+              "MEDICAL DATA above when available. Do NOT invent dosages "
+              "not mentioned in the data. If unsure about a specific "
+              "number, write 'as directed by doctor' in the target "
+              "language instead of guessing."
+        )
 
     response = client.chat.completions.create(
         model=MODEL,
@@ -223,6 +288,10 @@ def explain_medication(
         notes = [str(notes)]
     dc["special_notes"] = notes
     result["dosage_card"] = dc
+
+    # RAG provenance
+    result["citations"] = citations if citations else ["OpenFDA", "Groq AI"]
+    result["rag_used"] = rag_used
 
     result["model"] = MODEL
     return result

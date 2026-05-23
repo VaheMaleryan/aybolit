@@ -4,7 +4,7 @@ import os
 import logging
 from typing import Optional
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -16,11 +16,14 @@ from .schemas import (
     InteractionRequest,
     InteractionResponse,
     SearchResponse,
+    OCRResponse,
 )
 from .drug_data import fetch_drug_info, search_drug_names
 from .explainer import explain_medication
 from .interactions import process_interaction
 from .fuzzy_match import get_matcher
+from .rag import MedicationRAG
+from .ocr import MedicationOCR
 
 logger = logging.getLogger("aybolit")
 logging.basicConfig(level=logging.INFO)
@@ -28,6 +31,10 @@ logging.basicConfig(level=logging.INFO)
 # Support both new and legacy env names for transition
 DB_PATH = os.environ.get("AYBOLIT_DB") or os.environ.get("DEGHATUN_DB", "./aybolit.db")
 START_TIME = time.time()
+
+# AYBOLIT_LOCAL=true enables persistent RAG + Tesseract OCR. Cloud
+# (Railway) keeps it off so ChromaDB is in-memory and OCR uses Groq.
+LOCAL_MODE = os.environ.get("AYBOLIT_LOCAL", "false").lower() == "true"
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -66,6 +73,18 @@ def get_stats() -> dict:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_db()
+    # Initialize RAG (downloads embedding model on first run — can take
+    # ~30s the very first time, cached afterwards)
+    try:
+        logger.info(f"Initializing RAG (local_mode={LOCAL_MODE})…")
+        app.state.rag = MedicationRAG(persist_local=LOCAL_MODE)
+        logger.info(f"RAG ready: {app.state.rag.get_stats()}")
+    except Exception as e:
+        logger.exception("RAG initialization failed — explain will run without grounding")
+        app.state.rag = None
+    # OCR is cheap to construct
+    app.state.ocr = MedicationOCR()
+    logger.info(f"OCR backend: {app.state.ocr.backend}")
     yield
 
 
@@ -101,20 +120,29 @@ async def add_powered_by_header(request: Request, call_next):
 
 @app.get("/health")
 async def health():
+    rag = getattr(app.state, "rag", None)
     return {
         "status": "ok",
         "service": "Aybolit",
         "groq_configured": bool(os.environ.get("GROQ_API_KEY")),
+        "rag_ready": rag is not None,
+        "ocr_backend": app.state.ocr.backend if hasattr(app.state, "ocr") else None,
+        "local_mode": LOCAL_MODE,
     }
 
 
 @app.get("/stats")
 async def stats():
     data = get_stats()
+    rag = getattr(app.state, "rag", None)
+    rag_stats = rag.get_stats() if rag else {"total_chunks": 0, "mode": "disabled"}
     return {
         "total_queries": data.get("total_queries", 0),
         "total_interactions": data.get("total_interactions", 0),
         "uptime_seconds": round(time.time() - START_TIME, 1),
+        "rag_chunks": rag_stats.get("total_chunks", 0),
+        "rag_mode": rag_stats.get("mode", "disabled"),
+        "ocr_backend": app.state.ocr.backend if hasattr(app.state, "ocr") else None,
     }
 
 
@@ -176,7 +204,12 @@ async def explain(request: Request, body: MedRequest):
 
     explain_target = matched_name or effective_query
     try:
-        ai = explain_medication(explain_target, drug_data, body.language)
+        ai = explain_medication(
+            explain_target,
+            drug_data,
+            body.language,
+            rag=getattr(app.state, "rag", None),
+        )
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
@@ -210,6 +243,46 @@ async def explain(request: Request, body: MedRequest):
         matched_name=matched_name,
         match_source=match_source,
         category=category,
+        citations=ai.get("citations", []),
+        rag_used=ai.get("rag_used", False),
+    )
+
+
+ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp", "image/jpg"}
+MAX_IMAGE_BYTES = 5 * 1024 * 1024  # 5 MB
+
+
+@app.post("/ocr", response_model=OCRResponse, tags=["ocr"])
+@limiter.limit("10/minute")
+async def ocr_medicine(request: Request, file: UploadFile = File(...)):
+    """Upload a photo of a medicine box, prescription, or leaflet.
+    Returns structured medication data plus an `auto_search` field the
+    frontend can use to immediately re-run /explain on the detected drug.
+    """
+    # Validate content type early
+    if file.content_type not in ALLOWED_IMAGE_TYPES:
+        raise HTTPException(
+            status_code=415,
+            detail=f"Unsupported media type. Use JPEG, PNG, or WEBP."
+        )
+
+    image_bytes = await file.read()
+    if len(image_bytes) > MAX_IMAGE_BYTES:
+        raise HTTPException(status_code=413, detail="File too large — max 5MB")
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Empty file")
+
+    ocr = app.state.ocr
+    try:
+        result = ocr.extract_from_image(image_bytes, file.content_type)
+    except Exception as e:
+        logger.exception("OCR failed")
+        raise HTTPException(status_code=502, detail=f"OCR failed: {e}")
+
+    return OCRResponse(
+        **result,
+        ocr_backend=ocr.backend,
+        auto_search=result.get("drug_name") if result.get("found") else None,
     )
 
 

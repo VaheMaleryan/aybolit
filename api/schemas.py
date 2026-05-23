@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from typing import List, Literal, Optional, Union
+from typing import List, Literal, Optional
 
 
 class MedRequest(BaseModel):
@@ -54,6 +54,9 @@ class MedResponse(BaseModel):
     matched_name: Optional[str] = None
     match_source: Optional[str] = None  # tier1_exact | tier1_fuzzy | openfda_dynamic | not_found
     category: Optional[str] = None
+    # RAG metadata
+    citations: List[str] = []
+    rag_used: bool = False
 
 
 class InteractionRequest(BaseModel):
@@ -82,3 +85,20 @@ class InteractionResponse(BaseModel):
 
 class SearchResponse(BaseModel):
     suggestions: List[str]
+
+
+class OCRResponse(BaseModel):
+    found: bool
+    drug_name: Optional[str] = None
+    dosage_strength: Optional[str] = None
+    dosage_form: Optional[str] = None
+    manufacturer: Optional[str] = None
+    active_ingredient: Optional[str] = None
+    warnings_text: List[str] = []
+    instructions_text: Optional[str] = None
+    expiry_date: Optional[str] = None
+    language_detected: Optional[str] = None
+    raw_text: Optional[str] = None
+    ocr_backend: str  # "groq_vision" | "tesseract"
+    error: Optional[str] = None
+    auto_search: Optional[str] = None  # drug_name the UI can auto-search

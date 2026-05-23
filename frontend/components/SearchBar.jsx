@@ -78,13 +78,20 @@ export default function SearchBar({ onSearch, language, loading }) {
     <div ref={wrapperRef} className="relative w-full max-w-2xl mx-auto">
       <form onSubmit={handleSubmit} className="flex gap-3">
         <div className="relative flex-1">
+          <span
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-xl pointer-events-none select-none"
+            aria-hidden
+          >
+            💊
+          </span>
           <input
             type="text"
             value={query}
             onChange={handleInput}
             onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
             placeholder={PLACEHOLDERS[language]}
-            className="w-full px-5 py-4 text-lg border-2 border-warm-border rounded-xl bg-white font-plex text-warm-text placeholder-warm-muted focus:outline-none focus:border-arm-red transition-colors duration-200"
+            className="w-full pl-12 pr-5 py-3.5 text-base sm:text-lg border-2 border-warm-border rounded-xl bg-white font-plex text-warm-text placeholder-warm-muted focus:outline-none focus:border-arm-red focus:ring-4 focus:ring-arm-red/10 transition-all duration-200"
+            style={{ minHeight: 52 }}
             disabled={loading}
           />
           {showSuggestions && suggestions.length > 0 && (

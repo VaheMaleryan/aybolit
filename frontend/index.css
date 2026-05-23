@@ -7,16 +7,25 @@
     background-color: #FAFAF9;
     color: #1A1917;
     font-family: 'IBM Plex Sans', system-ui, sans-serif;
+    /* Prevent iOS Safari auto-zoom on focus */
+    -webkit-text-size-adjust: 100%;
   }
 
   h1, h2, h3 {
     font-family: 'Playfair Display', Georgia, serif;
   }
+
+  /* Inputs need to be at least 16px on iOS to avoid auto-zoom */
+  input, textarea, select {
+    font-size: 16px;
+  }
 }
 
 @layer components {
+  /* Slightly more padding, rounder corners, soft elevation. */
   .card {
-    @apply bg-white border border-warm-border rounded-xl p-6 shadow-sm;
+    @apply bg-white border border-warm-border rounded-2xl p-5 sm:p-[18px] transition-shadow duration-200;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   }
 
   .btn-primary {
@@ -38,11 +47,40 @@
   .lang-btn-inactive {
     @apply text-warm-muted hover:text-warm-text hover:bg-gray-100;
   }
+
+  /* Tab buttons — underline-on-active style */
+  .tab-btn {
+    @apply relative px-3 sm:px-5 py-2.5 font-plex text-sm sm:text-base
+           transition-colors duration-200 whitespace-nowrap
+           focus:outline-none;
+  }
+  .tab-btn-active {
+    @apply text-warm-text font-semibold;
+  }
+  .tab-btn-active::after {
+    content: '';
+    position: absolute;
+    left: 12%;
+    right: 12%;
+    bottom: -1px;
+    height: 3px;
+    background-color: #8B1A1A;
+    border-radius: 2px 2px 0 0;
+  }
+  .tab-btn-inactive {
+    @apply text-warm-muted font-medium hover:text-warm-text;
+  }
+
+  /* Citation chip used at the bottom of MedCard */
+  .citation-pill {
+    @apply inline-flex items-center px-2.5 py-1 rounded-full
+           bg-gray-100 text-gray-700 text-xs font-plex font-medium;
+  }
 }
 
 @keyframes pulse-border {
-  0%, 100% { border-color: #dc2626; box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
-  50% { border-color: #ef4444; box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
+  0%, 100% { border-color: #dc2626; box-shadow: -4px 0 0 0 #dc2626, 0 0 0 0 rgba(220, 38, 38, 0.4); }
+  50% { border-color: #ef4444; box-shadow: -4px 0 0 0 #ef4444, 0 0 0 6px rgba(220, 38, 38, 0); }
 }
 
 .emergency-pulse {

@@ -14,6 +14,10 @@ const LABELS = {
     noFood: 'Ընդունել առանց ուտելիքի',
     aiNote: 'միայն ԱԲ գիտելիք',
     source: 'Աղբյուր',
+    sources: 'Աղբյուրներ',
+    aiOnly: 'Աղբյուր: Groq ԱԲ',
+    disclaimer:
+      'Միայն տեղեկատվական նպատակով։ Միշտ խորհրդակցեք լիցենզավորված դեղագործի կամ բժշկի հետ։',
   },
   ru: {
     what: 'Для чего это лекарство',
@@ -24,6 +28,10 @@ const LABELS = {
     noFood: 'Принимать натощак',
     aiNote: 'только знания ИИ',
     source: 'Источник',
+    sources: 'Источники',
+    aiOnly: 'Источник: знания Groq AI',
+    disclaimer:
+      'Только в информационных целях. Всегда консультируйтесь с лицензированным фармацевтом или врачом.',
   },
   en: {
     what: 'What it does',
@@ -34,6 +42,10 @@ const LABELS = {
     noFood: 'Take without food',
     aiNote: 'AI knowledge only',
     source: 'Source',
+    sources: 'Sources',
+    aiOnly: 'Source: Groq AI knowledge',
+    disclaimer:
+      'For informational purposes only. Always consult a licensed pharmacist or physician.',
   },
 }
 
@@ -104,9 +116,28 @@ export default function MedCard({ data, language }) {
       {/* Doctor signal */}
       <DoctorSignal signal={data.doctor_signal} reason={data.doctor_reason} language={language} />
 
+      {/* Sources / citations — RAG provenance */}
+      <div className="card">
+        <h3 className="font-plex text-xs font-semibold uppercase tracking-wider text-warm-muted mb-2">
+          {L.sources}
+        </h3>
+        {data.rag_used && data.citations && data.citations.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {data.citations.map((c, i) => (
+              <span key={i} className="citation-pill">{c}</span>
+            ))}
+          </div>
+        ) : (
+          <p className="font-plex text-sm text-warm-text">{L.aiOnly}</p>
+        )}
+        <p className="font-plex text-xs text-warm-muted italic mt-3 border-t border-warm-border pt-3">
+          {L.disclaimer}
+        </p>
+      </div>
+
       {/* Meta */}
       <p className="text-center text-xs font-plex text-warm-muted">
-        {L.source}: {data.source} · {data.model} · {data.processing_time_ms.toFixed(0)}ms
+        {data.source} · {data.model} · {data.processing_time_ms.toFixed(0)}ms
       </p>
     </div>
   )

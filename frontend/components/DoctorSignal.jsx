@@ -1,7 +1,7 @@
 const SIGNAL_CONFIG = {
   routine: {
-    bg: 'bg-green-50',
-    border: 'border-green-200',
+    bg: 'bg-white',
+    leftBorder: '#16a34a', // green-600
     icon: '✓',
     iconColor: 'text-green-600',
     badgeBg: 'bg-green-100',
@@ -18,8 +18,8 @@ const SIGNAL_CONFIG = {
     },
   },
   monitor: {
-    bg: 'bg-amber-50',
-    border: 'border-amber-200',
+    bg: 'bg-amber-50/50',
+    leftBorder: '#d97706', // amber-600
     icon: '⚠',
     iconColor: 'text-amber-600',
     badgeBg: 'bg-amber-100',
@@ -37,7 +37,7 @@ const SIGNAL_CONFIG = {
   },
   call_doctor: {
     bg: 'bg-orange-50',
-    border: 'border-orange-300',
+    leftBorder: '#ea580c', // orange-600
     icon: '📞',
     iconColor: 'text-orange-600',
     badgeBg: 'bg-orange-100',
@@ -55,7 +55,7 @@ const SIGNAL_CONFIG = {
   },
   emergency: {
     bg: 'bg-red-50',
-    border: 'border-red-400',
+    leftBorder: '#dc2626', // red-600
     icon: '🚨',
     iconColor: 'text-red-600',
     badgeBg: 'bg-red-100',
@@ -89,7 +89,10 @@ export default function DoctorSignal({ signal, reason, language }) {
   const isEmergency = signal === 'emergency'
 
   return (
-    <div className={`card ${cfg.bg} border-2 ${cfg.border} ${isEmergency ? 'emergency-pulse' : ''}`}>
+    <div
+      className={`card ${cfg.bg} ${isEmergency ? 'emergency-pulse' : ''}`}
+      style={{ borderLeft: `4px solid ${cfg.leftBorder}` }}
+    >
       <div className="flex items-start gap-4">
         <span className={`text-3xl ${cfg.iconColor} mt-0.5`}>{cfg.icon}</span>
         <div className="flex-1">
@@ -99,7 +102,7 @@ export default function DoctorSignal({ signal, reason, language }) {
           {reason && (
             <p className="font-plex text-warm-muted text-sm mt-1">{reason}</p>
           )}
-          <p className="font-plex text-warm-muted text-sm mt-3 italic border-t border-current border-opacity-20 pt-3">
+          <p className="font-plex text-warm-muted text-sm mt-3 italic border-t border-warm-border pt-3">
             Կասկածի դեպքում դիմեք բժշկի — При сомнениях обратитесь к врачу
           </p>
         </div>

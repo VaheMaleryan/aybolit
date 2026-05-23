@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from typing import List, Literal, Optional
+from typing import List, Literal, Optional, Union
 
 
 class MedRequest(BaseModel):
@@ -12,6 +12,11 @@ class MedRequest(BaseModel):
         if len(v.strip()) < 2:
             raise ValueError("drug_name must be at least 2 characters")
         return v.strip()
+
+
+class SideEffect(BaseModel):
+    effect: str
+    severity: Literal["mild", "moderate", "severe"] = "mild"
 
 
 class DosageCard(BaseModel):
@@ -30,20 +35,25 @@ class MedResponse(BaseModel):
     summary_hy: str
     summary_ru: str
     what_it_does: str
-    side_effects: List[str]
+    medication_type: Optional[str] = None
+    side_effects: List[SideEffect]
     dosage_guidance: str
     dosage_card: Optional[DosageCard] = None
     doctor_signal: Literal["routine", "monitor", "call_doctor", "emergency"]
     doctor_reason: str
     safe_with_food: bool
+    requires_prescription: Optional[bool] = None
+    controlled_substance: Optional[bool] = None
     processing_time_ms: float
     model: str
     source: str
-    # Fuzzy-match suggestions (populated when user's spelling was corrected)
+    # Fuzzy-match metadata
     did_you_mean: Optional[str] = None
     did_you_mean_hy: Optional[str] = None
     did_you_mean_ru: Optional[str] = None
     matched_name: Optional[str] = None
+    match_source: Optional[str] = None  # tier1_exact | tier1_fuzzy | openfda_dynamic | not_found
+    category: Optional[str] = None
 
 
 class InteractionRequest(BaseModel):

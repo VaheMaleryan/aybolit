@@ -133,41 +133,47 @@ async def explain(request: Request, body: MedRequest):
     start = time.time()
     original_query = body.drug_name
 
-    # Fuzzy-match metadata
-    did_you_mean: Optional[str] = None
-    matched_name: Optional[str] = None
-    did_you_mean_hy: Optional[str] = None
-    did_you_mean_ru: Optional[str] = None
-
-    # 1. Always run fuzzy match first to canonicalize the user's input.
-    #    This handles typos, transliteration, and brand-name variants
-    #    BEFORE asking OpenFDA — because FDA's own labels sometimes contain
-    #    typos that would falsely "match" a misspelled query.
+    # ── 3-layer detection: Tier1 → OpenFDA dynamic → Not found ──
     matcher = get_matcher()
     match = matcher.find_match(original_query)
 
-    if match["found"] and match["confidence"] >= 0.75:
-        matched_name = match["matched_name"]
-        # Only show "did you mean" if user's normalized input differs from
-        # the matched canonical name.
-        norm_original = matcher.normalize(original_query)
-        norm_matched = matcher.normalize(matched_name)
-        if norm_original != norm_matched:
-            did_you_mean = matched_name
-            did_you_mean_hy = match["suggestion_text_hy"]
-            did_you_mean_ru = match["suggestion_text_ru"]
-        # Use the canonical OpenFDA search term
+    did_you_mean: Optional[str] = None
+    did_you_mean_hy: Optional[str] = None
+    did_you_mean_ru: Optional[str] = None
+    matched_name: Optional[str] = None
+    category: Optional[str] = None
+    match_source: str = match["match_source"]
+
+    if match["found"]:
+        matched_name = match["canonical_name"]
+        category = match.get("category")
+        if match.get("did_you_mean"):
+            did_you_mean = match["did_you_mean"]
+            did_you_mean_hy = match["suggestion_hy"]
+            did_you_mean_ru = match["suggestion_ru"]
+
+    if match["found"] and match_source in ("tier1_exact", "tier1_fuzzy"):
+        # Tier-1 hit — use the curated openFDA term
         effective_query = match["openfda_term"]
+        drug_data = fetch_drug_info(effective_query)
+        found = drug_data.get("found", False)
+    elif match["found"] and match_source == "openfda_dynamic":
+        # The matcher already did the OpenFDA lookup. Re-fetch the data
+        # using the openfda_term it surfaced so we get full label info.
+        effective_query = match["openfda_term"] or original_query
+        drug_data = fetch_drug_info(effective_query)
+        found = drug_data.get("found", False)
     else:
+        # No catalog hit, no OpenFDA hit — let the AI try with the raw input
         effective_query = original_query
+        drug_data = fetch_drug_info(original_query)
+        found = drug_data.get("found", False)
 
-    # 2. Now query OpenFDA with the (possibly corrected) name
-    drug_data = fetch_drug_info(effective_query)
-    found = drug_data.get("found", False)
+    if found:
+        source = "openFDA + Groq" if match_source != "openfda_dynamic" else "openFDA dynamic + Groq"
+    else:
+        source = "AI knowledge only"
 
-    source = "openFDA + Groq" if found else "AI knowledge only"
-
-    # 3. Ask the AI to explain (using the effective drug name)
     explain_target = matched_name or effective_query
     try:
         ai = explain_medication(explain_target, drug_data, body.language)
@@ -186,12 +192,15 @@ async def explain(request: Request, body: MedRequest):
         summary_hy=ai.get("summary_hy", ""),
         summary_ru=ai.get("summary_ru", ""),
         what_it_does=ai.get("what_it_does", ""),
+        medication_type=ai.get("medication_type"),
         side_effects=ai.get("side_effects", []),
         dosage_guidance=ai.get("dosage_guidance", ""),
         dosage_card=ai.get("dosage_card"),
         doctor_signal=ai.get("doctor_signal", "routine"),
         doctor_reason=ai.get("doctor_reason", ""),
         safe_with_food=ai.get("safe_with_food", True),
+        requires_prescription=ai.get("requires_prescription"),
+        controlled_substance=ai.get("controlled_substance"),
         processing_time_ms=round(elapsed, 2),
         model=ai.get("model", "llama-3.3-70b-versatile"),
         source=source,
@@ -199,6 +208,8 @@ async def explain(request: Request, body: MedRequest):
         did_you_mean_hy=did_you_mean_hy,
         did_you_mean_ru=did_you_mean_ru,
         matched_name=matched_name,
+        match_source=match_source,
+        category=category,
     )
 
 

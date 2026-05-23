@@ -2,6 +2,7 @@ import { SignalBadge } from './DoctorSignal.jsx'
 import SideEffects from './SideEffects.jsx'
 import DoctorSignal from './DoctorSignal.jsx'
 import DosageCard from './DosageCard.jsx'
+import { MedicationTypeBadge, PrescriptionBadge } from './MedBadges.jsx'
 
 const LABELS = {
   hy: {
@@ -43,7 +44,7 @@ export default function MedCard({ data, language }) {
     <div className="space-y-4 w-full max-w-4xl mx-auto">
       {/* Header */}
       <div className="card">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
           <div>
             <h2 className="font-playfair text-3xl font-bold text-warm-text">{data.drug_name}</h2>
             {!data.found && (
@@ -52,6 +53,10 @@ export default function MedCard({ data, language }) {
               </span>
             )}
           </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <MedicationTypeBadge type={data.medication_type} language={language} />
+          <PrescriptionBadge requiresPrescription={data.requires_prescription} language={language} />
           <SignalBadge signal={data.doctor_signal} language={language} />
         </div>
       </div>

@@ -10,25 +10,45 @@ const LEGEND = {
   en: { mild: 'Mild', moderate: 'Moderate', severe: 'Severe' },
 }
 
-function classifyEffect(effect) {
-  const text = effect.toLowerCase()
-  const severe = ['severe', 'serious', 'death', 'fatal', 'liver', 'kidney', 'heart', 'allergic', 'anaphyla', 'bleeding', 'seizure']
-  const moderate = ['nausea', 'vomiting', 'dizziness', 'headache', 'rash', 'pain', 'diarrhea', 'constipation', 'insomnia']
-  if (severe.some(k => text.includes(k))) return 'severe'
-  if (moderate.some(k => text.includes(k))) return 'moderate'
-  return 'mild'
-}
-
 const PILL_CLASSES = {
   mild: 'bg-gray-100 text-gray-700',
   moderate: 'bg-amber-100 text-amber-800',
   severe: 'bg-red-100 text-red-800',
 }
 
+// Keyword fallback for legacy string-only effects
+function inferSeverity(text) {
+  const t = text.toLowerCase()
+  const severe = ['severe','serious','death','fatal','liver','kidney','heart','allergic','anaphyla','bleeding','seizure','ծանր','серьёз','серьез','опасн']
+  const moderate = ['nausea','vomiting','dizziness','headache','rash','pain','diarrhea','constipation','insomnia','rash','міжин','умерен','տհաճ']
+  if (severe.some(k => t.includes(k))) return 'severe'
+  if (moderate.some(k => t.includes(k))) return 'moderate'
+  return 'mild'
+}
+
+function normalize(item) {
+  // Accept {effect, severity} objects (new) or plain strings (legacy)
+  if (typeof item === 'string') {
+    return { effect: item, severity: inferSeverity(item) }
+  }
+  if (item && typeof item === 'object') {
+    const effect = String(item.effect ?? '').trim()
+    let severity = item.severity
+    if (!['mild','moderate','severe'].includes(severity)) {
+      severity = effect ? inferSeverity(effect) : 'mild'
+    }
+    return { effect, severity }
+  }
+  return { effect: '', severity: 'mild' }
+}
+
 export default function SideEffects({ effects, language }) {
   if (!effects || effects.length === 0) return null
 
   const legend = LEGEND[language] || LEGEND.en
+  const items = effects.map(normalize).filter(e => e.effect)
+
+  if (items.length === 0) return null
 
   return (
     <div className="card">
@@ -36,17 +56,15 @@ export default function SideEffects({ effects, language }) {
         {TITLES[language] || TITLES.en}
       </h3>
       <div className="flex flex-wrap gap-2">
-        {effects.map((effect, i) => {
-          const severity = classifyEffect(effect)
-          return (
-            <span
-              key={i}
-              className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-plex font-medium ${PILL_CLASSES[severity]}`}
-            >
-              {effect}
-            </span>
-          )
-        })}
+        {items.map((item, i) => (
+          <span
+            key={i}
+            className={`inline-flex items-center px-3 py-1.5 rounded-full text-sm font-plex font-medium ${PILL_CLASSES[item.severity]}`}
+            title={item.severity}
+          >
+            {item.effect}
+          </span>
+        ))}
       </div>
       <div className="flex gap-4 mt-4 pt-4 border-t border-warm-border">
         <span className="flex items-center gap-1.5 text-xs font-plex text-warm-muted">

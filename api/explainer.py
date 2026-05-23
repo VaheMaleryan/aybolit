@@ -12,77 +12,98 @@ MODEL = "llama-3.3-70b-versatile"
 VALID_SIGNALS = {"routine", "monitor", "call_doctor", "emergency"}
 
 SYSTEM_PROMPT = """
-You are a friendly Armenian pharmacist assistant named Aybolit
-(named after the beloved Soviet cartoon doctor).
-You explain medications in simple, clear language that any
-Armenian patient can understand — no medical jargon.
+You are Aybolit (Այբոլիտ) — a friendly Armenian pharmacist assistant,
+named after the beloved Soviet cartoon doctor. You explain medications
+in simple language for Armenian patients who may not have medical
+education. Be warm, clear, and reassuring.
 
 You respond in the SAME LANGUAGE the user asks in:
-- If asked in Armenian (հայերեն) → answer in Armenian
-- If asked in Russian (русский) → answer in Russian
-- If asked in English → answer in English
+- language=hy → respond in Armenian (հայերեն), proper Armenian script
+- language=ru → respond in Russian (русский), proper Cyrillic
+- language=en → respond in English
+
+For the dosage_card, use language-specific units:
+- Armenian:  "հաբ" (tablet), "մլ" (ml), "կաթիլ" (drop), "թեյի գդալ" (tsp), "ամպուլ"
+- Russian:   "таблетка", "мл", "капля", "чайная ложка", "ампула"
+- English:   "tablet", "ml", "drop", "teaspoon", "ampule"
 
 You always:
 1. Explain what the medication does in one simple sentence
-2. List the most important side effects in plain words
-3. Give basic dosage guidance (morning/evening/with food)
+2. Classify side effects by severity (mild / moderate / severe)
+3. Give structured dosage guidance
 4. Say clearly if the user should consult a doctor
-5. Never diagnose diseases
-6. Never recommend stopping prescribed medication
-7. Always end with: "Կասկածի դեպքում դիմեք բժշկի"
-   (When in doubt, consult your doctor)
+5. Indicate whether a prescription is required
+6. Never diagnose diseases or recommend stopping prescribed medication
 
 You have access to the following drug information:
 {drug_data}
 
-Be warm, clear, and reassuring. You are helping real patients
-in Armenia who trust you.
+You MUST return valid JSON only. No markdown fences. No preamble.
 """
 
 EXPLAIN_PROMPT = """
-Based on the drug information provided, create a complete medication explanation.
+Create a complete medication explanation as JSON.
 
 Drug name: {drug_name}
 Language requested: {language_name}
 
-Return a JSON object with exactly these fields:
+Return JSON with EXACTLY these keys:
 {{
   "summary_hy": "Full explanation in Armenian (2-3 sentences, warm and clear)",
   "summary_ru": "Full explanation in Russian (2-3 sentences, warm and clear)",
   "what_it_does": "One clear sentence in {language_name} explaining the purpose",
-  "side_effects": ["effect 1 in plain {language_name}", "effect 2", "effect 3", "effect 4", "effect 5"],
+  "medication_type": "antibiotic|painkiller|antiviral|antifungal|antihistamine|antihypertensive|antidiabetic|antidepressant|vitamin|hormone|gi_medication|respiratory|sedative|topical|other",
+  "side_effects": [
+    {{"effect": "name in {language_name}", "severity": "mild|moderate|severe"}},
+    {{"effect": "...", "severity": "..."}},
+    {{"effect": "...", "severity": "..."}},
+    {{"effect": "...", "severity": "..."}},
+    {{"effect": "...", "severity": "..."}}
+  ],
   "dosage_card": {{
-    "how_many": "amount per dose in {language_name} (e.g. '1-2 tablets' / '1-2 հաբ' / '1-2 таблетки')",
-    "how_often": "frequency in {language_name} (e.g. 'Every 6-8 hours' / 'Ամեն 6-8 ժամ' / 'Каждые 6-8 часов')",
+    "how_many": "amount per dose in {language_name} (e.g. '1-2 հաբ' / '1-2 таблетки' / '1-2 tablets')",
+    "how_often": "frequency in {language_name} (e.g. 'Ամեն 6-8 ժամ' / 'Каждые 6-8 часов')",
     "with_food": "yes|no|preferred",
-    "with_food_note": "short note in {language_name} about food (e.g. 'Take with milk or food')",
-    "max_per_day": "max daily dose in {language_name} (e.g. 'Maximum 8 tablets (4g) per day')",
-    "duration": "treatment duration in {language_name} (e.g. '3-7 days' or 'as prescribed by doctor')",
+    "with_food_note": "short note in {language_name} about food",
+    "max_per_day": "max daily dose in {language_name}",
+    "duration": "treatment duration in {language_name}",
     "special_notes": ["short note 1 in {language_name}", "note 2"]
   }},
   "dosage_guidance": "Free-text dosage paragraph in {language_name}",
   "doctor_signal": "routine|monitor|call_doctor|emergency",
   "doctor_reason": "Why this signal — one sentence in {language_name}",
-  "safe_with_food": true or false
+  "safe_with_food": true or false,
+  "controlled_substance": true or false,
+  "requires_prescription": true or false
 }}
 
-CRITICAL: The dosage_card MUST be written in {language_name}, not English
-(unless {language_name} is English). For example if language is Armenian,
-how_many should look like "1-2 հաբ", how_often like "Ամեն 6-8 ժամ",
-not the English equivalents.
+CRITICAL: The dosage_card text and side_effect names MUST be written in
+{language_name}, not English (unless {language_name} is English).
+Use proper Armenian/Cyrillic script — not transliteration.
+
+Rules for severity:
+- mild: tolerable (mild nausea, sleepiness, mild headache)
+- moderate: should be discussed with a doctor if persistent (rash, dizziness, vomiting)
+- severe: stop the drug and seek medical help (seizures, severe allergic reaction, bleeding)
 
 Rules for with_food:
-- "yes" → safe and beneficial to take with food
-- "no" → must be taken on empty stomach
-- "preferred" → either way is fine, but with food reduces stomach upset
+- "yes" → take with food (e.g. NSAIDs to protect stomach)
+- "no" → must take on empty stomach (e.g. levothyroxine)
+- "preferred" → either way is fine
+
+Rules for requires_prescription:
+- true: antibiotics, antidepressants, controlled substances, hypertension meds,
+  insulin, asthma inhalers, opioids
+- false: paracetamol, ibuprofen, aspirin, OTC antacids, common vitamins,
+  loperamide, simethicone
 
 Rules for doctor_signal:
-- emergency: if warnings mention overdose, seizure risk, cardiac warning, anaphylaxis
-- call_doctor: if first-time use recommended, pregnancy warnings, severe side effects
-- monitor: if mild side effects, take-with-food warnings
-- routine: common OTC medication, well-known safe drug
+- emergency: overdose / seizure / cardiac / anaphylaxis risk
+- call_doctor: first-time use needs guidance, pregnancy warnings, severe SEs likely
+- monitor: mild SEs, take-with-food warnings
+- routine: common OTC drug, well-known safe profile
 
-Return ONLY the JSON object, no other text, no markdown fences.
+Return ONLY the JSON object. No prose. No markdown fences.
 """
 
 INTERACTION_PROMPT = """
@@ -157,12 +178,32 @@ def explain_medication(
     result.setdefault("summary_hy", "")
     result.setdefault("summary_ru", "")
     result.setdefault("what_it_does", "")
-    result.setdefault("side_effects", [])
     result.setdefault("dosage_guidance", "")
     result.setdefault("doctor_reason", "")
     result.setdefault("safe_with_food", True)
-    if not isinstance(result.get("side_effects"), list):
-        result["side_effects"] = [str(result["side_effects"])]
+    result.setdefault("medication_type", "other")
+    result.setdefault("requires_prescription", None)
+    result.setdefault("controlled_substance", False)
+
+    # Coerce side_effects into list of {effect, severity} dicts. Accept:
+    # - list of dicts (preferred shape)
+    # - list of strings (legacy / fallback) → wrap as mild
+    # - anything else → []
+    raw_effects = result.get("side_effects", [])
+    if not isinstance(raw_effects, list):
+        raw_effects = [raw_effects]
+    coerced: list = []
+    for item in raw_effects:
+        if isinstance(item, dict):
+            effect = str(item.get("effect", "")).strip()
+            severity = item.get("severity", "mild")
+            if severity not in ("mild", "moderate", "severe"):
+                severity = "mild"
+            if effect:
+                coerced.append({"effect": effect, "severity": severity})
+        elif isinstance(item, str) and item.strip():
+            coerced.append({"effect": item.strip(), "severity": "mild"})
+    result["side_effects"] = coerced
 
     # Coerce dosage_card shape so Pydantic accepts it
     dc = result.get("dosage_card")

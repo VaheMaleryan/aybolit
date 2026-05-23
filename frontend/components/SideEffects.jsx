@@ -1,7 +1,13 @@
 const TITLES = {
-  hy: 'Կողмnakи ǝndings',
+  hy: 'Կողմնակի ազդեցություններ',
   ru: 'Побочные эффекты',
   en: 'Side Effects',
+}
+
+const LEGEND = {
+  hy: { mild: 'Թեթև', moderate: 'Միջին', severe: 'Ծանր' },
+  ru: { mild: 'Лёгкие', moderate: 'Умеренные', severe: 'Серьёзные' },
+  en: { mild: 'Mild', moderate: 'Moderate', severe: 'Severe' },
 }
 
 function classifyEffect(effect) {
@@ -21,6 +27,8 @@ const PILL_CLASSES = {
 
 export default function SideEffects({ effects, language }) {
   if (!effects || effects.length === 0) return null
+
+  const legend = LEGEND[language] || LEGEND.en
 
   return (
     <div className="card">
@@ -42,13 +50,13 @@ export default function SideEffects({ effects, language }) {
       </div>
       <div className="flex gap-4 mt-4 pt-4 border-t border-warm-border">
         <span className="flex items-center gap-1.5 text-xs font-plex text-warm-muted">
-          <span className="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block" /> Mild
+          <span className="w-2.5 h-2.5 rounded-full bg-gray-300 inline-block" /> {legend.mild}
         </span>
         <span className="flex items-center gap-1.5 text-xs font-plex text-warm-muted">
-          <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> Moderate
+          <span className="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block" /> {legend.moderate}
         </span>
         <span className="flex items-center gap-1.5 text-xs font-plex text-warm-muted">
-          <span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" /> Severe
+          <span className="w-2.5 h-2.5 rounded-full bg-red-400 inline-block" /> {legend.severe}
         </span>
       </div>
     </div>

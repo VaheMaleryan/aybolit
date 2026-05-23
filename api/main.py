@@ -1,20 +1,30 @@
 import time
 import sqlite3
 import os
+import logging
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-from .schemas import MedRequest, MedResponse, InteractionRequest, InteractionResponse, SearchResponse
+from .schemas import (
+    MedRequest,
+    MedResponse,
+    InteractionRequest,
+    InteractionResponse,
+    SearchResponse,
+)
 from .drug_data import fetch_drug_info, search_drug_names
 from .explainer import explain_medication
 from .interactions import process_interaction
 
-DB_PATH = os.environ.get("DEGHATUN_DB", "./deghatun.db")
+logger = logging.getLogger("aybolit")
+logging.basicConfig(level=logging.INFO)
+
+# Support both new and legacy env names for transition
+DB_PATH = os.environ.get("AYBOLIT_DB") or os.environ.get("DEGHATUN_DB", "./aybolit.db")
 START_TIME = time.time()
 
 limiter = Limiter(key_func=get_remote_address)
@@ -34,11 +44,11 @@ def init_db():
 def increment_stat(key: str):
     try:
         conn = sqlite3.connect(DB_PATH)
-        conn.execute(f"UPDATE stats SET value = value + 1 WHERE key = ?", (key,))
+        conn.execute("UPDATE stats SET value = value + 1 WHERE key = ?", (key,))
         conn.commit()
         conn.close()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning(f"increment_stat failed for {key}: {e}")
 
 
 def get_stats() -> dict:
@@ -58,7 +68,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Deghatun API",
+    title="Aybolit API",
     description="Armenian Medication Intelligence Assistant",
     version="1.0.0",
     lifespan=lifespan,
@@ -83,13 +93,17 @@ app.add_middleware(
 @app.middleware("http")
 async def add_powered_by_header(request: Request, call_next):
     response = await call_next(request)
-    response.headers["x-powered-by"] = "Deghatun"
+    response.headers["x-powered-by"] = "Aybolit"
     return response
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "Deghatun"}
+    return {
+        "status": "ok",
+        "service": "Aybolit",
+        "groq_configured": bool(os.environ.get("GROQ_API_KEY")),
+    }
 
 
 @app.get("/stats")
@@ -119,7 +133,15 @@ async def explain(request: Request, body: MedRequest):
     found = drug_data.get("found", False)
     source = "openFDA + Groq" if found else "AI knowledge only"
 
-    ai = explain_medication(body.drug_name, drug_data, body.language)
+    try:
+        ai = explain_medication(body.drug_name, drug_data, body.language)
+    except RuntimeError as e:
+        # Missing API key — config error
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.exception("explain_medication failed")
+        raise HTTPException(status_code=502, detail=f"AI explanation failed: {e}")
+
     elapsed = (time.time() - start) * 1000
     increment_stat("total_queries")
 
@@ -143,6 +165,13 @@ async def explain(request: Request, body: MedRequest):
 @app.post("/interaction", response_model=InteractionResponse)
 @limiter.limit("20/minute")
 async def interaction(request: Request, body: InteractionRequest):
-    result = process_interaction(body.drug1, body.drug2, body.language)
+    try:
+        result = process_interaction(body.drug1, body.drug2, body.language)
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.exception("process_interaction failed")
+        raise HTTPException(status_code=502, detail=f"Interaction check failed: {e}")
+
     increment_stat("total_interactions")
     return result

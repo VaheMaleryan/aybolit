@@ -6,26 +6,47 @@ import InteractionChecker from './components/InteractionChecker.jsx'
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const TABS = {
-  hy: ['Deghami9ocayin bancatrutyan', 'Qnnel ǝndardznutyune'],
+  hy: ['Բացատրել դեղամիջոցը', 'Ստուգել համատեղելիությունը'],
   ru: ['Объяснить лекарство', 'Проверить взаимодействие'],
   en: ['Explain medication', 'Check interaction'],
 }
 
 const HERO = {
   hy: {
-    title: 'Deghatun · Դeghатун',
-    subtitle: 'Haskatsek jer deghami9oce hayereni ev russereni',
-    disclaimer: 'Krtchutyan npatakov miayin. Bjankayin vochandzotneri hamar dimate bjshki:',
+    title: 'Այբոլիտ · Aybolit',
+    subtitle: 'Հասկացեք ձեր դեղամիջոցը հայերեն և ռուսերեն',
+    disclaimer: 'Միայն կրթական նպատակով։ Բժշկական որոշումների համար դիմեք բժշկի։',
   },
   ru: {
-    title: 'Deghatun · Дегатун',
+    title: 'Айболит · Aybolit',
     subtitle: 'Понимайте своё лекарство на армянском и русском',
     disclaimer: 'Только в образовательных целях. Для медицинских решений проконсультируйтесь с врачом.',
   },
   en: {
-    title: 'Deghatun · Դeghатун',
+    title: 'Aybolit · Այբոլիտ',
     subtitle: 'Understand your medication in Armenian and Russian',
     disclaimer: 'Educational information only. Always consult a licensed physician for medical decisions.',
+  },
+}
+
+const STATES = {
+  hy: {
+    loading: 'Բացատրում ենք դեղամիջոցը...',
+    emptyTitle: 'Մուտքագրեք դեղամիջոցի անունը վերևում',
+    emptySub: 'Հայերեն, ռուսերեն կամ անգլերեն',
+    errorFallback: 'Ինչ-որ բան սխալվեց։ Խնդրում ենք փորձել նորից։',
+  },
+  ru: {
+    loading: 'Объясняем лекарство...',
+    emptyTitle: 'Введите название лекарства выше',
+    emptySub: 'На армянском, русском или английском',
+    errorFallback: 'Что-то пошло не так. Попробуйте ещё раз.',
+  },
+  en: {
+    loading: 'Explaining medication...',
+    emptyTitle: 'Enter a medication name above',
+    emptySub: 'In Armenian, Russian, or English',
+    errorFallback: 'Something went wrong. Please try again.',
   },
 }
 
@@ -38,6 +59,7 @@ export default function App() {
 
   const hero = HERO[language]
   const tabs = TABS[language]
+  const S = STATES[language]
 
   async function handleSearch(drugName) {
     setLoading(true)
@@ -51,12 +73,12 @@ export default function App() {
       })
       if (!res.ok) {
         const err = await res.json().catch(() => ({}))
-        throw new Error(err.detail || 'API error')
+        throw new Error(err.detail || `HTTP ${res.status}`)
       }
       const data = await res.json()
       setResult(data)
     } catch (e) {
-      setError(e.message || 'Something went wrong. Please try again.')
+      setError(e.message ? `${S.errorFallback} (${e.message})` : S.errorFallback)
     } finally {
       setLoading(false)
     }
@@ -68,8 +90,8 @@ export default function App() {
       <header className="bg-white border-b border-warm-border sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <div>
-            <h1 className="font-playfair text-2xl font-bold text-arm-red">Deghatun</h1>
-            <p className="font-plex text-xs text-warm-muted leading-tight">Դeghатун · Armenian Medication Assistant</p>
+            <h1 className="font-playfair text-2xl font-bold text-arm-red">Aybolit</h1>
+            <p className="font-plex text-xs text-warm-muted leading-tight">Այբոլիտ · Armenian Medication Assistant</p>
           </div>
           {/* Language selector */}
           <div className="flex items-center gap-1 bg-gray-50 rounded-lg p-1 border border-warm-border">
@@ -128,7 +150,7 @@ export default function App() {
             {loading && (
               <div className="flex flex-col items-center justify-center py-16 gap-4">
                 <div className="w-12 h-12 border-4 border-arm-red border-t-transparent rounded-full animate-spin" />
-                <p className="font-plex text-warm-muted">Bnutagrum deghami9oce...</p>
+                <p className="font-plex text-warm-muted">{S.loading}</p>
               </div>
             )}
             {error && (
@@ -141,8 +163,8 @@ export default function App() {
             )}
             {!result && !loading && !error && (
               <div className="text-center py-16 space-y-3">
-                <p className="font-playfair text-2xl text-warm-muted">Deghami9oci anune miqtagrel verei</p>
-                <p className="font-plex text-warm-muted text-sm">Hayereni, russereni kam anglereni</p>
+                <p className="font-playfair text-2xl text-warm-muted">{S.emptyTitle}</p>
+                <p className="font-plex text-warm-muted text-sm">{S.emptySub}</p>
               </div>
             )}
           </>
@@ -161,7 +183,7 @@ export default function App() {
             {hero.disclaimer}
           </p>
           <p className="font-plex text-xs text-warm-muted mt-2">
-            © 2024 Deghatun · Built for Armenian patients · MIT License
+            © 2024 Aybolit · Built for Armenian patients · MIT License
           </p>
         </div>
       </footer>

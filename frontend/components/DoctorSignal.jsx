@@ -6,10 +6,14 @@ const SIGNAL_CONFIG = {
     iconColor: 'text-green-600',
     badgeBg: 'bg-green-100',
     badgeText: 'text-green-700',
-    badgeLabel: 'Routine medication',
+    badgeLabel: {
+      hy: 'Սովորական դեղամիջոց',
+      ru: 'Обычное лекарство',
+      en: 'Routine medication',
+    },
     title: {
-      hy: 'Սovoral բnakanutyan dex չi petvum',
-      ru: 'Обычный визит к врачу не требуется',
+      hy: 'Բժշկի այցելություն չի պահանջվում',
+      ru: 'Визит к врачу не требуется',
       en: 'No immediate doctor visit needed',
     },
   },
@@ -20,9 +24,13 @@ const SIGNAL_CONFIG = {
     iconColor: 'text-amber-600',
     badgeBg: 'bg-amber-100',
     badgeText: 'text-amber-700',
-    badgeLabel: 'Monitor symptoms',
+    badgeLabel: {
+      hy: 'Հետևեք ախտանիշերին',
+      ru: 'Следите за симптомами',
+      en: 'Monitor symptoms',
+    },
     title: {
-      hy: 'Hetevakel apelahardeq simptomere',
+      hy: 'Հետևեք ձեր ախտանիշերին',
       ru: 'Следите за симптомами',
       en: 'Watch your symptoms',
     },
@@ -34,9 +42,13 @@ const SIGNAL_CONFIG = {
     iconColor: 'text-orange-600',
     badgeBg: 'bg-orange-100',
     badgeText: 'text-orange-700',
-    badgeLabel: 'Consult doctor',
+    badgeLabel: {
+      hy: 'Դիմեք բժշկի',
+      ru: 'Обратитесь к врачу',
+      en: 'Consult doctor',
+    },
     title: {
-      hy: 'Dardzred bjshki',
+      hy: 'Պետք է դիմել բժշկի',
       ru: 'Обратитесь к врачу',
       en: 'Schedule a doctor visit',
     },
@@ -48,21 +60,26 @@ const SIGNAL_CONFIG = {
     iconColor: 'text-red-600',
     badgeBg: 'bg-red-100',
     badgeText: 'text-red-700',
-    badgeLabel: 'Seek medical attention',
+    badgeLabel: {
+      hy: 'Շտապ բուժօգնություն',
+      ru: 'Срочная медпомощь',
+      en: 'Seek medical attention',
+    },
     title: {
-      hy: 'Anjin dardzred bjshki',
+      hy: 'Անհապաղ դիմեք բժշկի',
       ru: 'Немедленно обратитесь к врачу',
       en: 'Seek medical attention now',
     },
   },
 }
 
-export function SignalBadge({ signal }) {
+export function SignalBadge({ signal, language = 'en' }) {
   const cfg = SIGNAL_CONFIG[signal] || SIGNAL_CONFIG.routine
+  const label = cfg.badgeLabel[language] || cfg.badgeLabel.en
   return (
     <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-plex font-medium ${cfg.badgeBg} ${cfg.badgeText}`}>
       <span>{cfg.icon}</span>
-      {cfg.badgeLabel}
+      {label}
     </span>
   )
 }
@@ -83,7 +100,7 @@ export default function DoctorSignal({ signal, reason, language }) {
             <p className="font-plex text-warm-muted text-sm mt-1">{reason}</p>
           )}
           <p className="font-plex text-warm-muted text-sm mt-3 italic border-t border-current border-opacity-20 pt-3">
-            Կасκածи деpqum дijek bjшki — Всегда консультируйтесь с врачом при сомнениях
+            Կասկածի դեպքում դիմեք բժշկի — При сомнениях обратитесь к врачу
           </p>
         </div>
       </div>

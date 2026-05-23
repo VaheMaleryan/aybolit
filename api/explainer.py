@@ -1,12 +1,19 @@
 import os
+import re
 import json
-from typing import Dict, Any, List
+import logging
+from typing import Dict, Any
 from groq import Groq
+
+logger = logging.getLogger("aybolit.explainer")
 
 MODEL = "llama-3.3-70b-versatile"
 
+VALID_SIGNALS = {"routine", "monitor", "call_doctor", "emergency"}
+
 SYSTEM_PROMPT = """
-You are a friendly Armenian pharmacist assistant named Deghatun.
+You are a friendly Armenian pharmacist assistant named Aybolit
+(named after the beloved Soviet cartoon doctor).
 You explain medications in simple, clear language that any
 Armenian patient can understand — no medical jargon.
 
@@ -22,7 +29,7 @@ You always:
 4. Say clearly if the user should consult a doctor
 5. Never diagnose diseases
 6. Never recommend stopping prescribed medication
-7. Always end with: "Կասկածի դեpqum dijek bjshki"
+7. Always end with: "Կասկածի դեպքում դիմեք բժշկի"
    (When in doubt, consult your doctor)
 
 You have access to the following drug information:
@@ -36,7 +43,7 @@ EXPLAIN_PROMPT = """
 Based on the drug information provided, create a complete medication explanation.
 
 Drug name: {drug_name}
-Language requested: {language}
+Language requested: {language_name}
 
 Return a JSON object with exactly these fields:
 {{
@@ -47,8 +54,7 @@ Return a JSON object with exactly these fields:
   "dosage_guidance": "Clear dosage instructions in {language_name} (timing, amount, with/without food)",
   "doctor_signal": "routine|monitor|call_doctor|emergency",
   "doctor_reason": "Why this signal — one sentence in {language_name}",
-  "safe_with_food": true or false,
-  "model": "{model}"
+  "safe_with_food": true or false
 }}
 
 Rules for doctor_signal:
@@ -57,7 +63,7 @@ Rules for doctor_signal:
 - monitor: if mild side effects, take-with-food warnings
 - routine: common OTC medication, well-known safe drug
 
-Return ONLY the JSON object, no other text.
+Return ONLY the JSON object, no other text, no markdown fences.
 """
 
 INTERACTION_PROMPT = """
@@ -79,7 +85,7 @@ Verdict rules:
 - caution: severity is moderate or minor with real risk
 - safe: no interaction or trivial interaction
 
-Return ONLY the JSON object.
+Return ONLY the JSON object, no markdown fences, no other text.
 """
 
 LANGUAGE_NAMES = {
@@ -106,9 +112,7 @@ def explain_medication(
     system = SYSTEM_PROMPT.format(drug_data=drug_data_str)
     user_prompt = EXPLAIN_PROMPT.format(
         drug_name=drug_name,
-        language=language,
         language_name=lang_name,
-        model=MODEL,
     )
 
     response = client.chat.completions.create(
@@ -121,8 +125,25 @@ def explain_medication(
         max_tokens=1500,
     )
     content = response.choices[0].message.content.strip()
-    content = _strip_markdown_json(content)
-    result = json.loads(content)
+    result = _safe_parse_json(content)
+
+    # Validate / coerce signal
+    signal = result.get("doctor_signal", "routine")
+    if signal not in VALID_SIGNALS:
+        signal = _determine_doctor_signal(drug_data)
+    result["doctor_signal"] = signal
+
+    # Ensure required fields exist with defaults
+    result.setdefault("summary_hy", "")
+    result.setdefault("summary_ru", "")
+    result.setdefault("what_it_does", "")
+    result.setdefault("side_effects", [])
+    result.setdefault("dosage_guidance", "")
+    result.setdefault("doctor_reason", "")
+    result.setdefault("safe_with_food", True)
+    if not isinstance(result.get("side_effects"), list):
+        result["side_effects"] = [str(result["side_effects"])]
+
     result["model"] = MODEL
     return result
 
@@ -148,19 +169,31 @@ def explain_interaction(
         max_tokens=800,
     )
     content = response.choices[0].message.content.strip()
-    content = _strip_markdown_json(content)
-    result = json.loads(content)
+    result = _safe_parse_json(content)
+
+    verdict = result.get("verdict", "caution")
+    if verdict not in {"safe", "caution", "dangerous"}:
+        verdict = "caution"
+    result["verdict"] = verdict
+
+    result.setdefault("explanation_hy", "")
+    result.setdefault("explanation_ru", "")
+    result.setdefault("recommendation", "")
     return result
 
 
 def _determine_doctor_signal(drug_data: Dict[str, Any]) -> str:
+    """Keyword-based fallback when the AI returns an invalid signal."""
     text = " ".join([
         str(drug_data.get("warnings", "")),
         str(drug_data.get("contraindications", "")),
         str(drug_data.get("side_effects", "")),
     ]).lower()
 
-    emergency_keywords = ["overdose", "seizure", "cardiac", "anaphylaxis", "anaphylactic", "heart attack", "stroke"]
+    emergency_keywords = [
+        "overdose", "seizure", "cardiac", "anaphylaxis",
+        "anaphylactic", "heart attack", "stroke",
+    ]
     call_keywords = ["pregnancy", "pregnant", "consult", "physician", "prescription"]
     monitor_keywords = ["nausea", "dizziness", "drowsiness", "fatigue", "food"]
 
@@ -174,6 +207,23 @@ def _determine_doctor_signal(drug_data: Dict[str, Any]) -> str:
         if kw in text:
             return "monitor"
     return "routine"
+
+
+def _safe_parse_json(content: str) -> Dict[str, Any]:
+    """Strip markdown fences and parse JSON. If it fails, extract the first
+    {...} block. If that still fails, raise a clear error."""
+    cleaned = _strip_markdown_json(content)
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+        if match:
+            try:
+                return json.loads(match.group(0))
+            except json.JSONDecodeError:
+                pass
+    logger.error("Could not parse AI JSON response: %s", content[:500])
+    raise ValueError("AI returned invalid JSON")
 
 
 def _strip_markdown_json(content: str) -> str:

@@ -7,8 +7,17 @@ TIMEOUT = 10
 
 
 def fetch_drug_info(drug_name: str) -> Dict[str, Any]:
+    safe = "".join(c for c in drug_name if c.isalnum() or c.isspace()).strip()
+    if not safe:
+        return _not_found(drug_name)
+
+    # Use openfda.* fields (more reliable than top-level brand_name).
+    # Quoted phrase = exact match on tokenized field.
     params = {
-        "search": f'(brand_name:"{drug_name}" OR generic_name:"{drug_name}")',
+        "search": (
+            f'openfda.brand_name:"{safe}" '
+            f'openfda.generic_name:"{safe}"'
+        ),
         "limit": 1,
     }
     try:
@@ -42,36 +51,38 @@ def fetch_drug_info(drug_name: str) -> Dict[str, Any]:
 
 
 def search_drug_names(query: str) -> List[str]:
+    """Autocomplete via OpenFDA. Lucene wildcards must be OUTSIDE quotes:
+    `openfda.generic_name:aspirin*` works; `"aspirin*"` matches literal `*`."""
+    # Strip non-alphanumeric to avoid breaking Lucene syntax
+    safe = "".join(c for c in query if c.isalnum())
+    if not safe:
+        return []
+
     params = {
-        "search": f'(brand_name:"{query}*" OR generic_name:"{query}*")',
-        "limit": 5,
-        "count": "openfda.brand_name.exact",
+        "search": (
+            f"openfda.generic_name:{safe}* "
+            f"openfda.brand_name:{safe}*"
+        ),
+        "limit": 10,
     }
     names: List[str] = []
     try:
         resp = requests.get(FDA_BASE, params=params, timeout=TIMEOUT)
-        if resp.status_code == 200:
-            data = resp.json()
-            for item in data.get("results", []):
-                term = item.get("term", "")
-                if term:
-                    names.append(term)
-        if not names:
-            simple = {
-                "search": f'(brand_name:"{query}*" OR generic_name:"{query}*")',
-                "limit": 5,
-            }
-            resp2 = requests.get(FDA_BASE, params=simple, timeout=TIMEOUT)
-            if resp2.status_code == 200:
-                data2 = resp2.json()
-                for item in data2.get("results", []):
-                    openfda = item.get("openfda", {})
-                    brand = _first(openfda.get("brand_name"))
-                    generic = _first(openfda.get("generic_name"))
-                    if brand and brand not in names:
-                        names.append(brand)
-                    if generic and generic not in names:
-                        names.append(generic)
+        if resp.status_code != 200:
+            return []
+        data = resp.json()
+        for item in data.get("results", []):
+            openfda = item.get("openfda", {})
+            for key in ("brand_name", "generic_name"):
+                val = _first(openfda.get(key))
+                if val:
+                    val = val.strip()
+                    # Title-case for nicer display
+                    nice = val.title() if val.isupper() or val.islower() else val
+                    if nice and nice not in names:
+                        names.append(nice)
+                        if len(names) >= 5:
+                            return names
     except Exception:
         pass
     return names[:5]

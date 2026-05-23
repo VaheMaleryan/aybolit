@@ -1,15 +1,21 @@
 import { useState, useEffect, useRef } from 'react'
 
 const PLACEHOLDERS = {
-  hy: 'Մուտqagrel deghami9oci anune...',
+  hy: 'Մուտքագրեք դեղամիջոցի անունը...',
   ru: 'Введите название лекарства...',
   en: 'Enter medication name...',
 }
 
 const BUTTON_LABELS = {
-  hy: 'Բacer · Explain',
-  ru: 'Объяснить · Explain',
+  hy: 'Բացատրել',
+  ru: 'Объяснить',
   en: 'Explain',
+}
+
+const LOADING_LABELS = {
+  hy: 'Բացատրում...',
+  ru: 'Объясняем...',
+  en: 'Explaining...',
 }
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -108,7 +114,7 @@ export default function SearchBar({ onSearch, language, loading }) {
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
               </svg>
-              ...
+              {LOADING_LABELS[language]}
             </span>
           ) : BUTTON_LABELS[language]}
         </button>

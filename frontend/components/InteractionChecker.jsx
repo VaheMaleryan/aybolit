@@ -4,14 +4,15 @@ const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const LABELS = {
   hy: {
-    drug1: 'Առаjin deghami9oc',
-    drug2: 'Erkrord deghami9oc',
-    button: 'Srenel ǝndharmanume · Check interaction',
-    checking: 'Srenum...',
-    armenian: 'Հayereni',
-    russian: 'Русский',
-    recommendation: 'Xorurt',
-    severity: 'Tsavajutyan ashxarh',
+    drug1: 'Առաջին դեղամիջոց',
+    drug2: 'Երկրորդ դեղամիջոց',
+    button: 'Ստուգել համատեղելիությունը',
+    checking: 'Ստուգում...',
+    armenian: 'Հայերեն',
+    russian: 'Ռուսերեն',
+    recommendation: 'Խորհուրդ',
+    severity: 'Ծանրության աստիճան',
+    error: 'Չհաջողվեց ստուգել: Փորձեք նորից:',
   },
   ru: {
     drug1: 'Первое лекарство',
@@ -22,6 +23,7 @@ const LABELS = {
     russian: 'По-русски',
     recommendation: 'Рекомендация',
     severity: 'Степень тяжести',
+    error: 'Не удалось проверить. Попробуйте ещё раз.',
   },
   en: {
     drug1: 'First medication',
@@ -32,6 +34,7 @@ const LABELS = {
     russian: 'Russian',
     recommendation: 'Recommendation',
     severity: 'Severity',
+    error: 'Could not check interaction. Please try again.',
   },
 }
 
@@ -42,7 +45,11 @@ const VERDICT_CONFIG = {
     icon: '✓',
     iconBg: 'bg-green-100',
     iconColor: 'text-green-700',
-    title: 'Generally safe together',
+    title: {
+      hy: 'Ընդհանուր առմամբ անվտանգ համատեղ ընդունման համար',
+      ru: 'Обычно безопасно принимать вместе',
+      en: 'Generally safe together',
+    },
     titleColor: 'text-green-800',
   },
   caution: {
@@ -51,7 +58,11 @@ const VERDICT_CONFIG = {
     icon: '⚠',
     iconBg: 'bg-amber-100',
     iconColor: 'text-amber-700',
-    title: 'Use with caution — monitor symptoms',
+    title: {
+      hy: 'Զգուշորեն — հետևեք ախտանիշերին',
+      ru: 'С осторожностью — следите за симптомами',
+      en: 'Use with caution — monitor symptoms',
+    },
     titleColor: 'text-amber-800',
   },
   dangerous: {
@@ -60,7 +71,11 @@ const VERDICT_CONFIG = {
     icon: '⚠',
     iconBg: 'bg-red-100',
     iconColor: 'text-red-700',
-    title: 'Dangerous combination — consult doctor immediately',
+    title: {
+      hy: 'Վտանգավոր համակցություն — անհապաղ դիմեք բժշկի',
+      ru: 'Опасное сочетание — немедленно обратитесь к врачу',
+      en: 'Dangerous combination — consult doctor immediately',
+    },
     titleColor: 'text-red-800',
   },
 }
@@ -86,11 +101,14 @@ export default function InteractionChecker({ language }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ drug1: drug1.trim(), drug2: drug2.trim(), language }),
       })
-      if (!res.ok) throw new Error('API error')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}))
+        throw new Error(err.detail || `HTTP ${res.status}`)
+      }
       const data = await res.json()
       setResult(data)
-    } catch {
-      setError('Could not check interaction. Please try again.')
+    } catch (e) {
+      setError(e.message ? `${L.error} (${e.message})` : L.error)
     } finally {
       setLoading(false)
     }
@@ -155,7 +173,7 @@ export default function InteractionChecker({ language }) {
                 {result.drug1} + {result.drug2}
               </p>
               <h3 className={`font-playfair text-xl font-semibold ${verdict.titleColor}`}>
-                {verdict.title}
+                {verdict.title[language] || verdict.title.en}
               </h3>
             </div>
           </div>

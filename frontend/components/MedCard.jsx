@@ -4,14 +4,14 @@ import DoctorSignal from './DoctorSignal.jsx'
 
 const LABELS = {
   hy: {
-    what: 'Inge ari hamar e',
-    dosage: 'Jamanak u dzerq',
-    armenian: 'Hayereni bancatrutyan',
-    russian: 'Русское объяснение',
-    food: 'Kareli e utelik@',
-    noFood: 'Uteliqits ankaxy',
-    aiNote: 'AI knowledge only',
-    source: 'Albyur',
+    what: 'Ինչի համար է',
+    dosage: 'Դոզավորում և ընդունում',
+    armenian: 'Հայերեն բացատրություն',
+    russian: 'Ռուսերեն բացատրություն',
+    food: 'Կարելի է ուտելիքով',
+    noFood: 'Ընդունել առանց ուտելիքի',
+    aiNote: 'միայն ԱԲ գիտելիք',
+    source: 'Աղբյուր',
   },
   ru: {
     what: 'Для чего это лекарство',
@@ -51,7 +51,7 @@ export default function MedCard({ data, language }) {
               </span>
             )}
           </div>
-          <SignalBadge signal={data.doctor_signal} />
+          <SignalBadge signal={data.doctor_signal} language={language} />
         </div>
       </div>
 

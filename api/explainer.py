@@ -51,11 +51,30 @@ Return a JSON object with exactly these fields:
   "summary_ru": "Full explanation in Russian (2-3 sentences, warm and clear)",
   "what_it_does": "One clear sentence in {language_name} explaining the purpose",
   "side_effects": ["effect 1 in plain {language_name}", "effect 2", "effect 3", "effect 4", "effect 5"],
-  "dosage_guidance": "Clear dosage instructions in {language_name} (timing, amount, with/without food)",
+  "dosage_card": {{
+    "how_many": "amount per dose in {language_name} (e.g. '1-2 tablets' / '1-2 հաբ' / '1-2 таблетки')",
+    "how_often": "frequency in {language_name} (e.g. 'Every 6-8 hours' / 'Ամեն 6-8 ժամ' / 'Каждые 6-8 часов')",
+    "with_food": "yes|no|preferred",
+    "with_food_note": "short note in {language_name} about food (e.g. 'Take with milk or food')",
+    "max_per_day": "max daily dose in {language_name} (e.g. 'Maximum 8 tablets (4g) per day')",
+    "duration": "treatment duration in {language_name} (e.g. '3-7 days' or 'as prescribed by doctor')",
+    "special_notes": ["short note 1 in {language_name}", "note 2"]
+  }},
+  "dosage_guidance": "Free-text dosage paragraph in {language_name}",
   "doctor_signal": "routine|monitor|call_doctor|emergency",
   "doctor_reason": "Why this signal — one sentence in {language_name}",
   "safe_with_food": true or false
 }}
+
+CRITICAL: The dosage_card MUST be written in {language_name}, not English
+(unless {language_name} is English). For example if language is Armenian,
+how_many should look like "1-2 հաբ", how_often like "Ամեն 6-8 ժամ",
+not the English equivalents.
+
+Rules for with_food:
+- "yes" → safe and beneficial to take with food
+- "no" → must be taken on empty stomach
+- "preferred" → either way is fine, but with food reduces stomach upset
 
 Rules for doctor_signal:
 - emergency: if warnings mention overdose, seizure risk, cardiac warning, anaphylaxis
@@ -122,7 +141,8 @@ def explain_medication(
             {"role": "user", "content": user_prompt},
         ],
         temperature=0.3,
-        max_tokens=1500,
+        max_tokens=2000,
+        response_format={"type": "json_object"},
     )
     content = response.choices[0].message.content.strip()
     result = _safe_parse_json(content)
@@ -143,6 +163,25 @@ def explain_medication(
     result.setdefault("safe_with_food", True)
     if not isinstance(result.get("side_effects"), list):
         result["side_effects"] = [str(result["side_effects"])]
+
+    # Coerce dosage_card shape so Pydantic accepts it
+    dc = result.get("dosage_card")
+    if not isinstance(dc, dict):
+        dc = {}
+    dc.setdefault("how_many", "")
+    dc.setdefault("how_often", "")
+    wf = dc.get("with_food", "preferred")
+    if wf not in ("yes", "no", "preferred"):
+        wf = "preferred"
+    dc["with_food"] = wf
+    dc.setdefault("with_food_note", "")
+    dc.setdefault("max_per_day", "")
+    dc.setdefault("duration", "")
+    notes = dc.get("special_notes", [])
+    if not isinstance(notes, list):
+        notes = [str(notes)]
+    dc["special_notes"] = notes
+    result["dosage_card"] = dc
 
     result["model"] = MODEL
     return result
@@ -166,7 +205,8 @@ def explain_interaction(
         model=MODEL,
         messages=[{"role": "user", "content": prompt}],
         temperature=0.3,
-        max_tokens=800,
+        max_tokens=1000,
+        response_format={"type": "json_object"},
     )
     content = response.choices[0].message.content.strip()
     result = _safe_parse_json(content)

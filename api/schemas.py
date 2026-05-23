@@ -1,5 +1,5 @@
 from pydantic import BaseModel, field_validator
-from typing import List, Literal
+from typing import List, Literal, Optional
 
 
 class MedRequest(BaseModel):
@@ -14,6 +14,16 @@ class MedRequest(BaseModel):
         return v.strip()
 
 
+class DosageCard(BaseModel):
+    how_many: str = ""
+    how_often: str = ""
+    with_food: Literal["yes", "no", "preferred"] = "preferred"
+    with_food_note: str = ""
+    max_per_day: str = ""
+    duration: str = ""
+    special_notes: List[str] = []
+
+
 class MedResponse(BaseModel):
     drug_name: str
     found: bool
@@ -22,12 +32,18 @@ class MedResponse(BaseModel):
     what_it_does: str
     side_effects: List[str]
     dosage_guidance: str
+    dosage_card: Optional[DosageCard] = None
     doctor_signal: Literal["routine", "monitor", "call_doctor", "emergency"]
     doctor_reason: str
     safe_with_food: bool
     processing_time_ms: float
     model: str
     source: str
+    # Fuzzy-match suggestions (populated when user's spelling was corrected)
+    did_you_mean: Optional[str] = None
+    did_you_mean_hy: Optional[str] = None
+    did_you_mean_ru: Optional[str] = None
+    matched_name: Optional[str] = None
 
 
 class InteractionRequest(BaseModel):

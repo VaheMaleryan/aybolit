@@ -5,3 +5,6 @@ slowapi==0.1.9
 groq
 requests==2.31.0
 python-dotenv==1.0.0
+rapidfuzz>=3.0
+transliterate>=1.10
+pytest>=7.0

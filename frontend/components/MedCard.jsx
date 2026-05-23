@@ -1,6 +1,7 @@
 import { SignalBadge } from './DoctorSignal.jsx'
 import SideEffects from './SideEffects.jsx'
 import DoctorSignal from './DoctorSignal.jsx'
+import DosageCard from './DosageCard.jsx'
 
 const LABELS = {
   hy: {
@@ -81,11 +82,16 @@ export default function MedCard({ data, language }) {
         </div>
       </div>
 
-      {/* Dosage */}
-      <div className="card">
-        <h3 className="font-playfair text-xl font-semibold text-warm-text mb-3">{L.dosage}</h3>
-        <p className="font-plex text-warm-text leading-relaxed">{data.dosage_guidance}</p>
-      </div>
+      {/* Structured dosage card */}
+      <DosageCard card={data.dosage_card} language={language} />
+
+      {/* Free-text dosage paragraph (fallback / additional context) */}
+      {data.dosage_guidance && (
+        <div className="card">
+          <h3 className="font-playfair text-xl font-semibold text-warm-text mb-3">{L.dosage}</h3>
+          <p className="font-plex text-warm-text leading-relaxed">{data.dosage_guidance}</p>
+        </div>
+      )}
 
       {/* Side effects */}
       <SideEffects effects={data.side_effects} language={language} />

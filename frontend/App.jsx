@@ -2,6 +2,7 @@ import { useState } from 'react'
 import SearchBar from './components/SearchBar.jsx'
 import MedCard from './components/MedCard.jsx'
 import InteractionChecker from './components/InteractionChecker.jsx'
+import DidYouMeanBanner from './components/DidYouMeanBanner.jsx'
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -159,7 +160,14 @@ export default function App() {
               </div>
             )}
             {result && !loading && (
-              <MedCard data={result} language={language} />
+              <div className="space-y-4">
+                <DidYouMeanBanner
+                  result={result}
+                  language={language}
+                  onSearch={handleSearch}
+                />
+                <MedCard data={result} language={language} />
+              </div>
             )}
             {!result && !loading && !error && (
               <div className="text-center py-16 space-y-3">

@@ -2,6 +2,7 @@ import time
 import sqlite3
 import os
 import logging
+from typing import Optional
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -19,6 +20,7 @@ from .schemas import (
 from .drug_data import fetch_drug_info, search_drug_names
 from .explainer import explain_medication
 from .interactions import process_interaction
+from .fuzzy_match import get_matcher
 
 logger = logging.getLogger("aybolit")
 logging.basicConfig(level=logging.INFO)
@@ -129,14 +131,47 @@ async def search(request: Request, q: str = ""):
 @limiter.limit("20/minute")
 async def explain(request: Request, body: MedRequest):
     start = time.time()
-    drug_data = fetch_drug_info(body.drug_name)
+    original_query = body.drug_name
+
+    # Fuzzy-match metadata
+    did_you_mean: Optional[str] = None
+    matched_name: Optional[str] = None
+    did_you_mean_hy: Optional[str] = None
+    did_you_mean_ru: Optional[str] = None
+
+    # 1. Always run fuzzy match first to canonicalize the user's input.
+    #    This handles typos, transliteration, and brand-name variants
+    #    BEFORE asking OpenFDA — because FDA's own labels sometimes contain
+    #    typos that would falsely "match" a misspelled query.
+    matcher = get_matcher()
+    match = matcher.find_match(original_query)
+
+    if match["found"] and match["confidence"] >= 0.75:
+        matched_name = match["matched_name"]
+        # Only show "did you mean" if user's normalized input differs from
+        # the matched canonical name.
+        norm_original = matcher.normalize(original_query)
+        norm_matched = matcher.normalize(matched_name)
+        if norm_original != norm_matched:
+            did_you_mean = matched_name
+            did_you_mean_hy = match["suggestion_text_hy"]
+            did_you_mean_ru = match["suggestion_text_ru"]
+        # Use the canonical OpenFDA search term
+        effective_query = match["openfda_term"]
+    else:
+        effective_query = original_query
+
+    # 2. Now query OpenFDA with the (possibly corrected) name
+    drug_data = fetch_drug_info(effective_query)
     found = drug_data.get("found", False)
+
     source = "openFDA + Groq" if found else "AI knowledge only"
 
+    # 3. Ask the AI to explain (using the effective drug name)
+    explain_target = matched_name or effective_query
     try:
-        ai = explain_medication(body.drug_name, drug_data, body.language)
+        ai = explain_medication(explain_target, drug_data, body.language)
     except RuntimeError as e:
-        # Missing API key — config error
         raise HTTPException(status_code=503, detail=str(e))
     except Exception as e:
         logger.exception("explain_medication failed")
@@ -146,19 +181,24 @@ async def explain(request: Request, body: MedRequest):
     increment_stat("total_queries")
 
     return MedResponse(
-        drug_name=body.drug_name,
+        drug_name=matched_name or original_query,
         found=found,
         summary_hy=ai.get("summary_hy", ""),
         summary_ru=ai.get("summary_ru", ""),
         what_it_does=ai.get("what_it_does", ""),
         side_effects=ai.get("side_effects", []),
         dosage_guidance=ai.get("dosage_guidance", ""),
+        dosage_card=ai.get("dosage_card"),
         doctor_signal=ai.get("doctor_signal", "routine"),
         doctor_reason=ai.get("doctor_reason", ""),
         safe_with_food=ai.get("safe_with_food", True),
         processing_time_ms=round(elapsed, 2),
         model=ai.get("model", "llama-3.3-70b-versatile"),
         source=source,
+        did_you_mean=did_you_mean,
+        did_you_mean_hy=did_you_mean_hy,
+        did_you_mean_ru=did_you_mean_ru,
+        matched_name=matched_name,
     )
 
 

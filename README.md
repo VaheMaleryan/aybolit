@@ -1,262 +1,331 @@
-# Aybolit · Այбoлit
+# Aybolit · Այbolit
 
-**Your friendly Armenian medication assistant — named after the beloved Soviet cartoon doctor**
+> Armenian medication assistant — explains any medication in Armenian and Russian
+> with structured dosage, severity-tagged side effects, drug-interaction checking,
+> and a medicine-box photo scanner.
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-blue)](https://vahemaleryan.github.io/aybolit)
-[![API Docs](https://img.shields.io/badge/API-FastAPI%20Docs-green)](https://aybolit-api.up.railway.app/docs)
-[![License](https://img.shields.io/badge/license-MIT-lightgrey)](LICENSE)
-[![Languages](https://img.shields.io/badge/languages-Armenian%20%7C%20Russian%20%7C%20English-orange)]()
-
----
-
-## The Problem
-
-Armenian patients regularly receive medications with instructions written in Russian or dense medical jargon. Most patients cannot fully understand what a drug does, how to take it correctly, or what warning signs to watch for. Pharmacists are overworked and rarely have time to explain. This gap leads to dangerous misuse, missed doses, and unreported side effects.
-
-No Armenian-language medication explainer existed — until now.
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688)](https://fastapi.tiangolo.com/)
+[![React 18](https://img.shields.io/badge/React-18-61dafb)](https://react.dev/)
+[![Groq](https://img.shields.io/badge/AI-Groq%20llama--3.3--70b-ff6b35)](https://groq.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-lightgrey.svg)](LICENSE)
 
 ---
 
-## What Aybolit Does
+## Demo
 
-- **Type any medication name** in Armenian, Russian, or English — typos, brand names, Cyrillic, and mixed scripts all handled
-- **Get a plain-language explanation** in both Armenian and Russian simultaneously
-- **Check if two medications interact safely** — with severity rating and bilingual explanation
-- **Know when to call your doctor** — with a clear signal: Routine / Monitor / Call doctor / Emergency
-- **Scan a medicine box** — upload a photo and Aybolit reads the label automatically (Phase 3 — Scan tab)
-- Side effects shown as color-coded pills (mild / moderate / severe)
-- Every answer is **grounded in real OpenFDA data** via a vector RAG layer — citations are shown in the response
+![Aybolit demo](docs/demo.gif)
 
-> **For best results, run locally** (see [Local Setup](#local-setup-better-quality)). Tesseract OCR with Armenian + Russian language packs is significantly more accurate than the cloud vision model on Cyrillic and Armenian text, and persistent ChromaDB lets the RAG cache grow over time.
+*(GIF recording is checked in once the demo has been captured —
+see [`docs/RECORDING_GUIDE.md`](docs/RECORDING_GUIDE.md).)*
 
----
+### Example 1 — Phonetic typo
 
-## Demo Examples
+```
+Input:  paratsetamol   (language: hy)
 
-### Example 1 — English input → Armenian + Russian output
+Did you mean:  Paracetamol
+Source:        openFDA + Groq (rag_used: true)
+Doctor signal: Monitor symptoms
 
-**Input:** `Amoxicillin`
+Armenian:  Պարացետամոլը ցավի և տենդի դեղ է...
+Russian:   Парацетамол — обезболивающее и жаропонижающее средство...
 
-**Armenian (summary_hy):**
-> Ամoxicillin-ը հակabiotik е, vorы oqtagortsac է baктериalakan varkutyunneri dem, aynnpisi shunchitak, parankevorum yev djayner:
+How to take:
+  Dose       1-2 հաբ
+  Frequency  Ամեն 6-8 ժամ
+  With food  Ցանկալի է
+```
 
-**Russian (summary_ru):**
-> Амоксициллин — антибиотик, который борется с бактериальными инфекциями: ушными инфекциями, ангиной и пневмонией.
+### Example 2 — Russian Cyrillic brand name
 
-**Doctor signal:** `monitor` — Take full course even if you feel better
+```
+Input:  Нурофен   (language: hy)
 
----
+Matched:        Ibuprofen   (via tier-1 catalog — brand: Nurofen / Нурофен)
+Medication:     painkiller, OTC
+Doctor signal:  Monitor symptoms
 
-### Example 2 — Russian input → Armenian output
+Side effects:
+  · stomach pain (moderate)
+  · dizziness (mild)
+  · allergic reaction (severe)
+```
 
-**Input:** `Парацетамол` (language: `hy`)
+### Example 3 — Drug interaction
 
-**What it does:** Reduces fever and relieves mild to moderate pain
+```
+Input:  Aspirin  +  Warfarin   (language: en)
 
-**Armenian explanation:**
-> Парасетамол-ը (ацетаминофен) tsavazrakum e djermutyan yev batkem mjiayin tsavere:
+Verdict:        Caution — monitor symptoms
+Severity:       moderate
+Source:         RxNorm + Groq
 
-**Doctor signal:** `routine` — Common OTC medication, safe when used as directed
+Recommendation: Combining aspirin with warfarin significantly
+increases bleeding risk. Consult your doctor before combining.
+```
 
----
+### Example 4 — Medicine-box photo
 
-### Example 3 — Drug interaction check
+```
+Input:  [photo of medicine box]
 
-**Input:** `Aspirin` + `Warfarin`
+Detected:       Aspirin
+Strength:       500 mg
+Form:           tablet
+Manufacturer:   Bayer
+Active:         Aspirin
+Backend:        groq_vision   (1.1 s)
 
-**Verdict:** 🔴 `dangerous`
-
-**Armenian:** Aspirin yev Warfarin-i mijavsorum karog e zkayatsel aryan mecanelutyan vtangavorutyan avdzelacum.
-
-**Russian:** Сочетание аспирина и варфарина значительно увеличивает риск кровотечения. Это опасная комбинация.
-
-**Recommendation:** Do not take these together without direct supervision from your doctor.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Backend | FastAPI (Python) |
-| Frontend | React + Vite + Tailwind CSS |
-| AI | Groq API — llama-3.3-70b-versatile |
-| RAG | ChromaDB + sentence-transformers (multilingual-MiniLM-L12-v2) |
-| OCR (cloud) | Groq Vision (llama-4-scout) |
-| OCR (local) | Tesseract (hye + rus + eng) |
-| Fuzzy matching | rapidfuzz + transliterate |
-| Drug data | OpenFDA API (free, no key) |
-| Interactions | RxNorm API (free, no key) |
-| Backend hosting | Railway |
-| Frontend hosting | GitHub Pages |
+→ Click "Explain this medication" to jump to the Explain tab
+  with the detected name pre-filled.
+```
 
 ---
 
-## RAG System
+## Features
 
-Aybolit uses **Retrieval-Augmented Generation** to ground responses in verified OpenFDA label data instead of relying on the LLM's training knowledge alone.
-
-- **Embedding model:** `paraphrase-multilingual-MiniLM-L12-v2` (supports Armenian, Russian, English natively; ~120 MB; runs locally — no embedding API calls)
-- **Vector DB:** ChromaDB — ephemeral in cloud mode (rebuilt on startup), persistent on disk in local mode
-- **Chunking:** OpenFDA label split by section (purpose, dosage, warnings, side_effects, interactions, contraindications, pregnancy, indications), then into overlapping ~300-char windows (50 words, 8-word overlap)
-- **At explain-time:** 3 query vectors are issued for dosage, safety, and interactions; the top 6 deduped chunks become "VERIFIED MEDICAL DATA" in the prompt
-- **Every response carries `citations`** like `["OpenFDA — dosage", "OpenFDA — warnings", …]` and a `rag_used: true` flag
-
-## Medicine Scanner (OCR)
-
-Upload a photo of any medicine box, prescription, or leaflet. Two backends with identical API contract:
-
-- **Cloud (default):** Groq Vision (llama-4-scout) — no extra system deps; works on Railway free tier
-- **Local:** Tesseract OCR with Armenian + Russian + English language packs — higher accuracy on Cyrillic/Armenian labels, fully offline once installed
-
-The OCR result includes `drug_name`, `dosage_strength`, `dosage_form`, `manufacturer`, `warnings_text`, and a one-click "Explain this medication" button that hands the detected name to the Explain tab.
+- **Understands any input** — Armenian, Russian, English, typos, brand names,
+  Cyrillic, Armenian script, mixed script, phonetic Latin spellings
+- **Bilingual explanations** in simple Armenian + Russian
+- **Structured dosage card** — dose / frequency / with food
+- **Severity-tagged side effects** (mild / moderate / severe)
+- **Doctor signal** — routine / monitor / call doctor / emergency
+- **Drug-interaction checker** against the NIH RxNorm database
+- **Medicine-box scanner** — upload a photo, get the medication name
+  and auto-explain in one click
+- **RAG-grounded answers** — every response is backed by retrieval from
+  the OpenFDA label database; the response carries citations
+- **3-layer name detection** — curated tier-1 catalog → OpenFDA dynamic →
+  AI knowledge fallback
 
 ---
 
-## Quick Start
+## Architecture
 
+```
+            ┌────────────────────────────────┐
+   User ──▶ │ Frontend (React + Vite)        │
+            │  Explain / Interaction / Scan  │
+            └──────────────┬─────────────────┘
+                           │ HTTP
+                           ▼
+            ┌────────────────────────────────────────────────────────────┐
+            │ FastAPI (api/main.py)                                      │
+            │                                                            │
+            │  /explain                                                  │
+            │    ├─ Tier-1 name match    rapidfuzz + transliterate       │
+            │    │      (73 medications, 524 variants)                   │
+            │    ├─ OpenFDA dynamic      if not in tier-1, try FDA       │
+            │    ├─ OpenFDA label fetch  (real drug label data)          │
+            │    ├─ RAG retrieve         ChromaDB + multilingual MiniLM  │
+            │    └─ Groq LLM             llama-3.3-70b-versatile         │
+            │                                                            │
+            │  /interaction              RxNorm + Groq                   │
+            │  /ocr                      Groq Vision or Tesseract        │
+            │  /search                   OpenFDA autocomplete            │
+            └────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Local Setup
+
+### Prerequisites
+- Python 3.13
+- Node.js 18+
+- A Groq API key — free at [console.groq.com](https://console.groq.com)
+
+### Installation
+
+**1. Clone**
 ```bash
-git clone https://github.com/VaheMaleryan/aybolit.git
+git clone https://github.com/VaheMaleryan/aybolit
 cd aybolit
+```
 
-# Backend (cloud-mode defaults: ephemeral RAG, Groq vision OCR)
-python3 -m venv venv && source venv/bin/activate
+**2. Backend**
+```bash
+python3 -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
-export GROQ_API_KEY=your_key_here
+```
+
+**3. Frontend**
+```bash
+cd frontend && npm install && cd ..
+```
+
+**4. Run (two terminals)**
+
+Terminal 1 — backend:
+```bash
+export GROQ_API_KEY="your-key-here"
 uvicorn api.main:app --reload --port 8000
-
-# Frontend (new terminal)
-cd frontend
-npm install
-npm run dev   # → http://localhost:5173/aybolit/
 ```
 
-### Deploy frontend to GitHub Pages
+Terminal 2 — frontend:
+```bash
+cd frontend && npm run dev
+```
+
+**5. Open**
+```
+http://localhost:5173
+```
+
+### Optional — better OCR (local Tesseract)
+
+By default the medicine-box scanner uses Groq Vision (cloud). For better
+Armenian + Russian text recognition, install Tesseract locally:
 
 ```bash
-cd frontend
-npm run build
-npm run deploy
+# macOS
+brew install tesseract tesseract-lang
+
+# Debian/Ubuntu
+sudo apt-get install tesseract-ocr tesseract-ocr-hye tesseract-ocr-rus
+
+# enable local mode
+export AYBOLIT_LOCAL=true
 ```
 
----
-
-## Local Setup (Better Quality)
-
-For best results — accurate Armenian + Russian OCR, persistent RAG cache that grows over time — run in **local mode**:
-
-```bash
-# 1. Install Tesseract with Armenian + Russian language packs
-brew install tesseract tesseract-lang   # macOS
-# or: sudo apt-get install tesseract-ocr tesseract-ocr-hye tesseract-ocr-rus
-
-# 2. Verify language packs are present
-tesseract --list-langs | grep -E "hye|rus|eng"
-
-# 3. Install Python deps (same requirements.txt — already includes
-#    pytesseract, pillow, chromadb, sentence-transformers)
-python3 -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-
-# 4. Run with local mode enabled
-export GROQ_API_KEY="your-key"
-export AYBOLIT_LOCAL="true"
-uvicorn api.main:app --port 8000
-```
-
-Local mode enables:
-- **Persistent ChromaDB** at `/tmp/aybolit_chroma` (override with `AYBOLIT_CHROMA_PATH`) — RAG cache survives restarts
-- **Tesseract OCR** for `/ocr` instead of Groq Vision — much better on Cyrillic / Armenian medicine labels, fully offline
+`AYBOLIT_LOCAL=true` also switches RAG storage from in-memory (rebuilt at every
+startup) to a persistent ChromaDB at `/tmp/aybolit_chroma`.
 
 ---
 
 ## API Reference
 
-### `POST /explain`
+| Method | Endpoint        | Description                          |
+| ------ | --------------- | ------------------------------------ |
+| POST   | `/explain`      | Explain a medication                 |
+| POST   | `/interaction`  | Check a drug interaction             |
+| POST   | `/ocr`          | Scan a medicine-box photo            |
+| GET    | `/search?q=`    | Autocomplete drug names              |
+| GET    | `/health`       | Health check + config status         |
+| GET    | `/stats`        | Query counts, uptime, RAG state      |
 
-```json
-{
-  "drug_name": "Amoxicillin",
-  "language": "hy"
-}
+Example:
+```bash
+curl -X POST http://localhost:8000/explain \
+  -H "Content-Type: application/json" \
+  -d '{"drug_name": "парацетамол", "language": "hy"}'
 ```
-
-Returns full medication explanation with bilingual summaries, side effects, dosage, and doctor signal.
-
-### `POST /interaction`
-
-```json
-{
-  "drug1": "Aspirin",
-  "drug2": "Warfarin",
-  "language": "hy"
-}
-```
-
-Returns interaction verdict: `safe` | `caution` | `dangerous` with bilingual explanation.
-
-### `GET /search?q={query}`
-
-Returns up to 5 autocomplete suggestions from OpenFDA.
-
-### `GET /health`
-
-Health check.
-
-### `GET /stats`
-
-Total queries, total interaction checks, uptime, RAG chunk count and mode, OCR backend.
-
-### `POST /ocr`
-
-Multipart form upload (`file=…`). JPEG / PNG / WEBP, max 5 MB.
-
-Returns:
-```json
-{
-  "found": true,
-  "drug_name": "Aspirin",
-  "dosage_strength": "500 mg",
-  "dosage_form": "tablet",
-  "manufacturer": "Bayer",
-  "active_ingredient": "Aspirin",
-  "warnings_text": ["…"],
-  "instructions_text": "…",
-  "language_detected": "en",
-  "ocr_backend": "groq_vision",
-  "auto_search": "Aspirin"
-}
-```
-
-The `auto_search` field lets the frontend immediately re-run `/explain` on the detected drug.
 
 ---
 
-## Railway Deployment (Backend)
+## Project Structure
 
-1. Push this repo to GitHub
-2. Go to [railway.app](https://railway.app) → New Project → Deploy from GitHub repo
-3. Select `VaheMaleryan/aybolit`
-4. Set environment variables:
-   - `GROQ_API_KEY` → your Groq API key
-   - `AYBOLIT_DB` → `/tmp/aybolit.db`
-   - (Optional) `GROQ_VISION_MODEL` → override the default vision model
-5. Railway auto-detects `render.yaml` and deploys
-6. The `VITE_API_URL` in `frontend/.env.production` already points to `https://aybolit-api.up.railway.app`
-
-Cloud mode uses ephemeral ChromaDB (rebuilt at every cold start) and Groq Vision for OCR. For heavier sustained usage and better OCR accuracy on Armenian/Russian labels, prefer **Local Setup** above.
+```
+aybolit/
+├── api/
+│   ├── main.py          # FastAPI app + all endpoints
+│   ├── fuzzy_match.py   # 3-layer name detection (tier-1, OpenFDA, AI)
+│   ├── med_catalog.py   # 73 medications × 524 variants
+│   ├── explainer.py     # Groq LLM + RAG grounding
+│   ├── drug_data.py     # OpenFDA label fetcher
+│   ├── interactions.py  # Drug-interaction orchestration
+│   ├── rag.py           # ChromaDB + sentence-transformers
+│   ├── ocr.py           # Groq Vision / Tesseract scanner
+│   └── schemas.py       # Pydantic request/response models
+├── frontend/
+│   ├── App.jsx                  # Slim header + 2-column main
+│   ├── Logo.jsx
+│   └── components/
+│       ├── SearchBar.jsx
+│       ├── InteractionChecker.jsx
+│       ├── MedicineScanner.jsx
+│       ├── MedCard.jsx
+│       ├── DosageCard.jsx
+│       ├── SideEffects.jsx
+│       ├── DoctorSignal.jsx
+│       └── DidYouMeanBanner.jsx
+├── tests/                # 45 pytest tests
+│   ├── test_fuzzy.py     # 25 — script normalization + matching
+│   ├── test_rag.py       #  9 — vector ingest/retrieval/chunking
+│   └── test_ocr.py       # 11 — endpoint + mocked vision backend
+├── docs/
+│   └── RECORDING_GUIDE.md
+├── requirements.txt
+└── README.md
+```
 
 ---
 
-## Disclaimer
+## ML / AI Components
 
-> **Aybolit provides educational information only.**
-> Always consult a licensed physician or pharmacist for medical decisions.
-> Aybolit is not a substitute for professional medical advice, diagnosis, or treatment.
-> Never disregard professional medical advice or delay seeking it because of information provided by Aybolit.
+**Name detection** — 3-layer pipeline in `api/fuzzy_match.py`:
+1. Tier-1 catalog (73 medications, 524 variants spanning Latin, Cyrillic,
+   Armenian script, phonetic spellings, brand names) matched with
+   `rapidfuzz.fuzz.ratio` ≥ 72 plus a prefix-similarity gate to reject
+   suffix-only false positives
+2. OpenFDA dynamic search if no tier-1 hit — covers any real drug not in
+   the curated catalog
+3. AI knowledge fallback if OpenFDA returns nothing
+Script normalization uses [`transliterate`](https://pypi.org/project/transliterate/)
+to convert Armenian + Russian to Latin before matching.
+
+**RAG** (`api/rag.py`):
+- Embedder: `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`
+  (~120 MB, native Armenian + Russian + English support, runs locally)
+- Vector store: ChromaDB — ephemeral by default, persistent in local mode
+- Chunks OpenFDA labels by section (dosage, warnings, side effects,
+  interactions, contraindications, pregnancy) into overlapping 50-word
+  windows
+- At explain-time 3 query vectors are issued (dosage, safety, interactions)
+  and the top 6 deduped chunks become *VERIFIED MEDICAL DATA* in the prompt
+- Every response carries `citations: ["OpenFDA — dosage", …]` + `rag_used`
+
+**OCR** (`api/ocr.py`):
+- Cloud (default): Groq Vision — `meta-llama/llama-4-scout-17b-16e-instruct`
+  with a 3-model fallback chain
+- Local: Tesseract OCR (`hye + rus + eng`) → text → Groq for structured
+  extraction
+- Both backends return the same response shape
+
+**Drug interactions** (`api/interactions.py`):
+- NIH RxNorm REST API for authoritative pairwise interactions
+- Severity normalized to `safe | caution | dangerous` → Groq writes a
+  bilingual explanation with a recommendation
+
+---
+
+## Limitations
+
+- Requires internet (OpenFDA + Groq APIs)
+- Groq free tier limits — see [console.groq.com](https://console.groq.com)
+- OCR accuracy depends on photo quality; Tesseract local mode handles
+  Cyrillic/Armenian better than cloud vision
+- The 73-medication tier-1 catalog is curated for Armenia; unknown drugs
+  fall back to OpenFDA dynamic lookup or AI-only knowledge
+- **Not a substitute for a licensed pharmacist or physician**
+
+---
+
+## Recording the demo
+
+See [`docs/RECORDING_GUIDE.md`](docs/RECORDING_GUIDE.md) for the
+60-second screencast script and tooling.
+
+---
+
+## Author
+
+**Vahe Maleryan** — CS student, Armenia
+[github.com/VaheMaleryan](https://github.com/VaheMaleryan)
 
 ---
 
 ## License
 
-MIT © 2024 VaheMaleryan
+MIT — see [`LICENSE`](LICENSE).
+
+---
+
+## Disclaimer
+
+Aybolit provides educational information only.
+**Always consult a licensed physician or pharmacist for medical decisions.**
+This project is not a substitute for professional medical advice, diagnosis,
+or treatment.

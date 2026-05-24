@@ -24,7 +24,7 @@ const HINTS = {
   en: 'Type in Armenian, Russian, or English',
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE = 'http://localhost:8000'
 
 export default function SearchBar({ onSearch, language, loading, initialValue = '' }) {
   const [query, setQuery] = useState(initialValue)

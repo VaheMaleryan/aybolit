@@ -6,7 +6,7 @@ import { InteractionForm, InteractionResult } from './components/InteractionChec
 import { ScanForm, ScanResult } from './components/MedicineScanner.jsx'
 import AybolitLogo from './Logo.jsx'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API_BASE = 'http://localhost:8000'
 const GITHUB_URL = 'https://github.com/VaheMaleryan/aybolit'
 
 const TAB_LABELS = {

@@ -1,4 +1,4 @@
-# Aybolit · Այbolit
+# Aybolit · Այբոլիտ
 
 > Armenian medication assistant — explains any medication in Armenian and Russian
 > with structured dosage, severity-tagged side effects, drug-interaction checking,

@@ -7,8 +7,8 @@ prompt so the LLM grounds its answer in real label text instead of
 fabricating.
 
 Two modes:
-- ephemeral (default; Railway-friendly): in-memory ChromaDB rebuilt at
-  every startup; embeddings stay in RAM only
+- ephemeral (default): in-memory ChromaDB rebuilt at every startup;
+  embeddings stay in RAM only
 - persistent (AYBOLIT_LOCAL=true): ChromaDB persisted to disk so embeds
   survive restarts and accumulate over time
 

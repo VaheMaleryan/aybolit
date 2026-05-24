@@ -16,9 +16,6 @@
 
 ![Aybolit demo](docs/demo.gif)
 
-*(GIF recording is checked in once the demo has been captured —
-see [`docs/RECORDING_GUIDE.md`](docs/RECORDING_GUIDE.md).)*
-
 ### Example 1 — Phonetic typo
 
 ```
@@ -246,7 +243,7 @@ aybolit/
 │   ├── test_rag.py       #  9 — vector ingest/retrieval/chunking
 │   └── test_ocr.py       # 11 — endpoint + mocked vision backend
 ├── docs/
-│   └── RECORDING_GUIDE.md
+│   └── demo.gif
 ├── requirements.txt
 └── README.md
 ```
@@ -300,13 +297,6 @@ to convert Armenian + Russian to Latin before matching.
 - The 73-medication tier-1 catalog is curated for Armenia; unknown drugs
   fall back to OpenFDA dynamic lookup or AI-only knowledge
 - **Not a substitute for a licensed pharmacist or physician**
-
----
-
-## Recording the demo
-
-See [`docs/RECORDING_GUIDE.md`](docs/RECORDING_GUIDE.md) for the
-60-second screencast script and tooling.
 
 ---
 

@@ -32,8 +32,8 @@ logging.basicConfig(level=logging.INFO)
 DB_PATH = os.environ.get("AYBOLIT_DB") or os.environ.get("DEGHATUN_DB", "./aybolit.db")
 START_TIME = time.time()
 
-# AYBOLIT_LOCAL=true enables persistent RAG + Tesseract OCR. Cloud
-# (Railway) keeps it off so ChromaDB is in-memory and OCR uses Groq.
+# AYBOLIT_LOCAL=true enables persistent RAG + Tesseract OCR.
+# Default (false) keeps ChromaDB in-memory and OCR using Groq Vision.
 LOCAL_MODE = os.environ.get("AYBOLIT_LOCAL", "false").lower() == "true"
 
 limiter = Limiter(key_func=get_remote_address)

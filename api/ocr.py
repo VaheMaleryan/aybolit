@@ -1,7 +1,7 @@
 """Medicine-image OCR with two interchangeable backends.
 
-Cloud (default): Groq vision model — no extra system deps, works on
-Railway's free tier with just GROQ_API_KEY.
+Default (cloud): Groq vision model — no extra system deps, just needs
+GROQ_API_KEY.
 
 Local (AYBOLIT_LOCAL=true): Tesseract OCR with Armenian + Russian +
 English language packs. Higher accuracy on poorly-lit medicine boxes;

@@ -1,13 +1,18 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
+.pytest_cache/
 .DS_Store
 *.db
-.env
-node_modules/
-frontend/dist/
 *.log
 *.iml
-.venv/
+.env
+.env.*
+node_modules/
 dist/
+frontend/dist/
 .claude/
+
+# Internal development docs — do not publish
+docs/RECORDING_GUIDE.md
